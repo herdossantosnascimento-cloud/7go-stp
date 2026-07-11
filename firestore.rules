@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "her.dos.santos.nascimento@gmail.com";
+    }
+
+    match /bookings/{bookingId} {
+      allow create: if
+        request.resource.data.customerName is string &&
+        request.resource.data.customerPhone is string &&
+        request.resource.data.carId is string &&
+        request.resource.data.pickupDate is string &&
+        request.resource.data.returnDate is string &&
+        request.resource.data.status == "pending";
+
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /bookingStatus/{reference} {
+      allow read: if true;
+      allow create: if
+        request.resource.data.reference == reference &&
+        request.resource.data.status in ["pending", "confirmed", "cancelled"] &&
+        request.resource.data.carId is string &&
+        request.resource.data.pickupDate is string &&
+        request.resource.data.returnDate is string;
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /availabilityLocks/{lockId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /carCatalog/{carId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

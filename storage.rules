@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email
+          == "her.dos.santos.nascimento@gmail.com";
+    }
+
+    function isValidInspectionImage() {
+      return request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+    }
+
+
+    function isValidCustomerDocument() {
+      return request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && (
+          request.resource.contentType.matches("image/.*")
+          || request.resource.contentType == "application/pdf"
+        );
+    }
+
+    match /booking-inspections/{bookingId}/{inspectionType}/{fileName} {
+      allow read: if isAdmin();
+
+      allow create, update: if
+        isAdmin()
+        && inspectionType in ["checkout", "checkin"]
+        && isValidInspectionImage();
+
+      allow delete: if isAdmin();
+    }
+
+
+    match /customer-documents/{customerId}/{fileName} {
+      allow read: if isAdmin();
+
+      allow create, update: if
+        isAdmin()
+        && isValidCustomerDocument();
+
+      allow delete: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

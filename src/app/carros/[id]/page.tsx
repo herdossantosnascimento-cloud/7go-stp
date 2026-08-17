@@ -41,7 +41,7 @@ export default async function CarDetailPage({ params }: PageProps) {
           <Link href="/#contacto">Contacto</Link>
         </nav>
 
-        <button className="login-button">Entrar</button>
+        <a href="/acesso" className="login-button">Entrar</a>
       </header>
 
       <PublicCarDetail fallbackCar={car} />

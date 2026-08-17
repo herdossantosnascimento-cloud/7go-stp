@@ -18,12 +18,7 @@ import { db } from "@/lib/firebase/client";
 
 type PublicBookingStatus = {
   reference?: string;
-  status?:
-    | "pending"
-    | "confirmed"
-    | "in_progress"
-    | "completed"
-    | "cancelled";
+  status?: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
   carBrand?: string;
   carModel?: string;
   pickupDate?: string;
@@ -107,10 +102,9 @@ export function MyBookingLookup() {
     : "";
 
   const currentStatus = booking?.status ?? "pending";
-  const currency = booking?.currency ?? "£";
+  const currency = booking?.currency ?? "€";
   const dailyPrice = booking?.dailyRate ?? booking?.pricePerDay;
-  const appliedExcess =
-    booking?.appliedExcess ?? booking?.normalExcess;
+  const appliedExcess = booking?.appliedExcess ?? booking?.normalExcess;
 
   return (
     <div className="my-booking-card">
@@ -122,16 +116,12 @@ export function MyBookingLookup() {
         <div>
           <span>Consulta segura</span>
           <h2>Encontra a tua reserva</h2>
-          <p>
-            Utiliza a referência 7GO recebida no momento do pedido.
-          </p>
+          <p>Utiliza a referência 7GO recebida no momento do pedido.</p>
         </div>
       </div>
 
       <div className="my-booking-search-field">
-        <label htmlFor="booking-reference">
-          Referência da reserva
-        </label>
+        <label htmlFor="booking-reference">Referência da reserva</label>
 
         <div>
           <Hash aria-hidden="true" />
@@ -139,9 +129,7 @@ export function MyBookingLookup() {
           <input
             id="booking-reference"
             value={reference}
-            onChange={(e) =>
-              setReference(e.target.value.toUpperCase())
-            }
+            onChange={(e) => setReference(e.target.value.toUpperCase())}
             placeholder="Ex.: 7GO-LUTNYT"
           />
         </div>
@@ -160,11 +148,7 @@ export function MyBookingLookup() {
         {!loading && <ArrowRight aria-hidden="true" />}
       </button>
 
-      {error && (
-        <p className="form-warning my-booking-error">
-          {error}
-        </p>
-      )}
+      {error && <p className="form-warning my-booking-error">{error}</p>}
 
       {booking && (
         <div className="my-booking-result">
@@ -204,9 +188,7 @@ export function MyBookingLookup() {
 
               <div>
                 <span>Modalidade</span>
-                <strong>
-                  {booking.rentalModeLabel || "Não registada"}
-                </strong>
+                <strong>{booking.rentalModeLabel || "Não registada"}</strong>
               </div>
 
               <div>
@@ -214,9 +196,7 @@ export function MyBookingLookup() {
                   <CalendarDays aria-hidden="true" />
                   Levantamento
                 </span>
-                <strong>
-                  {booking.pickupDate || "Não registado"}
-                </strong>
+                <strong>{booking.pickupDate || "Não registado"}</strong>
               </div>
 
               <div>
@@ -224,9 +204,7 @@ export function MyBookingLookup() {
                   <CalendarDays aria-hidden="true" />
                   Devolução
                 </span>
-                <strong>
-                  {booking.returnDate || "Não registada"}
-                </strong>
+                <strong>{booking.returnDate || "Não registada"}</strong>
               </div>
 
               <div>
@@ -234,9 +212,7 @@ export function MyBookingLookup() {
                   <Clock3 aria-hidden="true" />
                   Dias
                 </span>
-                <strong>
-                  {booking.totalDays ?? "Não registado"}
-                </strong>
+                <strong>{booking.totalDays ?? "Não registado"}</strong>
               </div>
             </div>
           </section>
@@ -307,11 +283,7 @@ export function MyBookingLookup() {
                 <span>Pagamento</span>
 
                 <strong>
-                  {
-                    paymentStatusLabel[
-                      booking.paymentStatus ?? "pending"
-                    ]
-                  }
+                  {paymentStatusLabel[booking.paymentStatus ?? "pending"]}
                 </strong>
               </div>
 
@@ -321,11 +293,7 @@ export function MyBookingLookup() {
                 <span>Estado da caução</span>
 
                 <strong>
-                  {
-                    depositStatusLabel[
-                      booking.depositStatus ?? "pending"
-                    ]
-                  }
+                  {depositStatusLabel[booking.depositStatus ?? "pending"]}
                 </strong>
               </div>
             </div>

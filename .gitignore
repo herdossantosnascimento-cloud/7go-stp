@@ -46,3 +46,15 @@ firebase-debug.*.log
 
 # Local backups
 /backups/
+
+# Backups locais do projeto
+backups/
+.env.local
+*firebase-adminsdk*.json
+
+# Local development / temporary files
+firestore-debug.log
+firebase-debug.log
+firebase-debug.*.log
+apply-booking-system-v2.py
+booking-admin-v2.txt

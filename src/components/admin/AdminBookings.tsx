@@ -14,34 +14,104 @@ import {
   where,
 } from "firebase/firestore";
 import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  type User,
-} from "firebase/auth";
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
+} from "firebase/storage";
+
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
-import { auth, db } from "@/lib/firebase/client";
+import { auth, db, storage } from "@/lib/firebase/client";
+
+import AdminInspectionPanel from "./AdminInspectionPanel";
+import styles from "./AdminBookings.module.css";
+
+const ADMIN_EMAIL = "her.dos.santos.nascimento@gmail.com";
+
+type AdminRole = "admin" | "staff";
+
+function removeUndefinedValues<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedValues(item)) as T;
+  }
+
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, removeUndefinedValues(item)]),
+    ) as T;
+  }
+
+  return value;
+}
 
 type BookingStatus =
-  | "pending"
-  | "confirmed"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+  "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
 type FilterStatus = "all" | BookingStatus;
 type PaymentStatus = "pending" | "partial" | "paid";
 type DepositStatus = "pending" | "received" | "returned" | "retained";
-type FuelLevel = "empty" | "quarter" | "half" | "three_quarters" | "full";
+type FuelLevel =
+  | "empty"
+  | "one_eighth"
+  | "quarter"
+  | "three_eighths"
+  | "half"
+  | "five_eighths"
+  | "three_quarters"
+  | "seven_eighths"
+  | "full";
 type VehicleCondition = "good" | "observations";
 
 type VehicleInspection = {
+  registrationPlate?: string;
   mileage?: number;
   fuelLevel?: FuelLevel;
   condition?: VehicleCondition;
   notes?: string;
+  photoUrls?: string[];
+
+  inspectionPhotos?: {
+    front?: string;
+    rear?: string;
+    left?: string;
+    right?: string;
+    interior?: string;
+    dashboard?: string;
+  };
+
+  customerSignatureUrl?: string;
+  customerSignedAt?: string;
+  staffSignatureUrl?: string;
+  staffSignedAt?: string;
   hasDamage?: boolean;
   damageDescription?: string;
   damageAmount?: number;
+  damageZones?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    description: string;
+    severity: "light" | "medium" | "severe";
+    createdAt?: string;
+  }>;
+  fuelCharge?: number;
+  cleaningRequired?: boolean;
+  cleaningNotes?: string;
+  cleaningAmount?: number;
+  depositReceived?: boolean;
+  depositPaymentMethod?: "cash" | "transfer" | "pos";
+  depositAmount?: number;
+  depositRefundAmount?: number;
+  depositRetainedAmount?: number;
+  additionalAmountDue?: number;
   completed?: boolean;
 };
 
@@ -73,7 +143,12 @@ type Booking = {
   carInsurancePolicyNumber?: string;
   carInsuranceExpiry?: string;
   pickupDate?: string;
+  pickupTime?: string;
+  pickupAt?: unknown;
   returnDate?: string;
+  returnTime?: string;
+  returnAt?: unknown;
+  rentalHours?: number;
   totalDays?: number;
   rentalModeLabel?: string;
   pricePerDay?: number;
@@ -84,6 +159,7 @@ type Booking = {
   refundableDeposit?: number;
   estimatedTotal?: number;
   currency?: string;
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
@@ -127,11 +203,31 @@ const depositStatusLabel: Record<DepositStatus, string> = {
 
 const fuelLevelLabel: Record<FuelLevel, string> = {
   empty: "Vazio",
+  one_eighth: "1/8",
   quarter: "1/4",
+  three_eighths: "3/8",
   half: "1/2",
+  five_eighths: "5/8",
   three_quarters: "3/4",
+  seven_eighths: "7/8",
   full: "Cheio",
 };
+
+const fuelGaugeLevels: Array<{
+  value: FuelLevel;
+  label: string;
+  percentage: number;
+}> = [
+  { value: "empty", label: "E", percentage: 0 },
+  { value: "one_eighth", label: "1/8", percentage: 12.5 },
+  { value: "quarter", label: "1/4", percentage: 25 },
+  { value: "three_eighths", label: "3/8", percentage: 37.5 },
+  { value: "half", label: "1/2", percentage: 50 },
+  { value: "five_eighths", label: "5/8", percentage: 62.5 },
+  { value: "three_quarters", label: "3/4", percentage: 75 },
+  { value: "seven_eighths", label: "7/8", percentage: 87.5 },
+  { value: "full", label: "F", percentage: 100 },
+];
 
 const vehicleConditionLabel: Record<VehicleCondition, string> = {
   good: "Bom estado",
@@ -140,6 +236,41 @@ const vehicleConditionLabel: Record<VehicleCondition, string> = {
 
 function normalisePhone(phone = "") {
   return phone.replace(/[^\d]/g, "");
+}
+
+function getAdminCarImage(booking: Booking) {
+  const vehicle = `${booking.carBrand ?? ""} ${booking.carModel ?? ""}`
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const imageMap: Array<[string[], string]> = [
+    [["ford", "kuga"], "/images/cars/ford-kuga-2010.png"],
+    [["toyota", "rav4"], "/images/cars/toyota-rav4-hybrid-2024.png"],
+    [["daihatsu", "terios"], "/images/cars/daihatsu-terios-2010.png"],
+    [["honda", "cr-v"], "/images/cars/honda-crv.png"],
+    [["honda", "crv"], "/images/cars/honda-crv.png"],
+    [["honda", "hr-v"], "/images/cars/honda-hrv.png"],
+    [["honda", "hrv"], "/images/cars/honda-hrv.png"],
+    [["hyundai", "tucson"], "/images/cars/hyundai-tucson.png"],
+    [["mitsubishi", "pajero"], "/images/cars/mitsubishi-pajero.png"],
+    [["nissan", "qashqai"], "/images/cars/nissan-qashqai.png"],
+    [["suzuki", "jimny"], "/images/cars/suzuki-jimny.png"],
+    [["toyota", "hilux"], "/images/cars/toyota-hilux.png"],
+    [["toyota", "urban cruiser"], "/images/cars/toyota-urban-cruiser.png"],
+    [["toyota", "prado txl"], "/images/cars/toyota-prado-txl.png"],
+    [
+      ["toyota", "land cruiser prado"],
+      "/images/cars/toyota-land-cruiser-prado-2006.png",
+    ],
+    [["toyota", "prado"], "/images/cars/toyota-prado.png"],
+  ];
+
+  const match = imageMap.find(([terms]) =>
+    terms.every((term) => vehicle.includes(term)),
+  );
+
+  return match?.[1] ?? "/images/7go-icon.png";
 }
 
 function getSaoTomeToday() {
@@ -161,6 +292,17 @@ function getSaoTomeToday() {
   return `${year}-${month}-${day}`;
 }
 
+function createBookingDateTime(date?: string, time?: string) {
+  if (!date) return null;
+  const value = new Date(`${date}T${time || "00:00"}:00`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function formatBookingDateTime(date?: string, time?: string) {
+  if (!date) return "Sem data";
+  return `${date}${time ? ` às ${time}` : ""}`;
+}
+
 function buildBookingMessage(booking: Booking) {
   return `Pedido 7Go STP
 
@@ -168,26 +310,30 @@ Referência: ${booking.reference || "Sem referência"}
 Estado: ${statusLabel[booking.status || "pending"]}
 
 Carro: ${booking.carBrand || ""} ${booking.carModel || ""}
-Datas: ${booking.pickupDate || ""} → ${booking.returnDate || ""}
+Período: ${formatBookingDateTime(booking.pickupDate, booking.pickupTime)} → ${formatBookingDateTime(booking.returnDate, booking.returnTime)}
 Dias: ${booking.totalDays || "-"}
 Modalidade: ${booking.rentalModeLabel || "-"}
-Preço base/dia: ${booking.currency || "£"}${booking.pricePerDay || "-"}
-Preço final/dia: ${booking.currency || "£"}${booking.dailyRate || booking.pricePerDay || "-"}
-Franquia: ${booking.currency || "£"}${booking.appliedExcess ?? booking.normalExcess ?? "-"}
-Caução reembolsável: ${booking.currency || "£"}${booking.refundableDeposit ?? "-"}
-Total estimado: ${booking.currency || "£"}${booking.estimatedTotal || "-"}
+Preço base/dia: ${booking.currency || "€"}${booking.pricePerDay || "-"}
+Preço final/dia: ${booking.currency || "€"}${booking.dailyRate || booking.pricePerDay || "-"}
+Franquia: ${booking.currency || "€"}${booking.appliedExcess ?? booking.normalExcess ?? "-"}
+Caução reembolsável: ${booking.currency || "€"}${booking.refundableDeposit ?? "-"}
+Total estimado: ${booking.currency || "€"}${booking.estimatedTotal || "-"}
 
 Cliente: ${booking.customerName || ""}
 Contacto: ${booking.customerPhone || ""}`;
 }
 
-export function AdminBookings() {
+export function AdminBookings({
+  authContext = "admin",
+}: {
+  authContext?: "admin" | "staff";
+}) {
+  const loginPath = authContext === "staff" ? "/staff/login" : "/admin/login";
   const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState("her.dos.santos.nascimento@gmail.com");
-  const [password, setPassword] = useState("");
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
   const [inspectionDrafts, setInspectionDrafts] = useState<
@@ -200,12 +346,61 @@ export function AdminBookings() {
   const [filter, setFilter] = useState<FilterStatus>("all");
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-
+    return onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
+        setUser(null);
+        setAdminRole(null);
         setBookings([]);
         setLoading(false);
+        setAuthChecking(false);
+
+        window.location.replace(loginPath);
+        return;
+      }
+
+      try {
+        let role: AdminRole | null = null;
+
+        if (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          role = "admin";
+        } else {
+          const token = await currentUser.getIdTokenResult(true);
+
+          const claimRole = token.claims.role;
+
+          if (claimRole === "admin" || claimRole === "staff") {
+            role = claimRole;
+          }
+        }
+
+        if (!role) {
+          setUser(null);
+          setAdminRole(null);
+          setBookings([]);
+          setLoading(false);
+          setAuthChecking(false);
+
+          await signOut(auth);
+
+          window.location.replace(loginPath);
+          return;
+        }
+
+        setAdminRole(role);
+        setUser(currentUser);
+        setAuthChecking(false);
+      } catch (error) {
+        console.error("ERRO AO VALIDAR ACESSO ADMIN:", error);
+
+        setUser(null);
+        setAdminRole(null);
+        setBookings([]);
+        setLoading(false);
+        setAuthChecking(false);
+
+        await signOut(auth);
+
+        window.location.replace(loginPath);
       }
     });
   }, []);
@@ -244,11 +439,16 @@ export function AdminBookings() {
   const stats = useMemo(() => {
     return {
       total: bookings.length,
-      pending: bookings.filter((booking) => booking.status === "pending").length,
-      confirmed: bookings.filter((booking) => booking.status === "confirmed").length,
-      inProgress: bookings.filter((booking) => booking.status === "in_progress").length,
-      completed: bookings.filter((booking) => booking.status === "completed").length,
-      cancelled: bookings.filter((booking) => booking.status === "cancelled").length,
+      pending: bookings.filter((booking) => booking.status === "pending")
+        .length,
+      confirmed: bookings.filter((booking) => booking.status === "confirmed")
+        .length,
+      inProgress: bookings.filter((booking) => booking.status === "in_progress")
+        .length,
+      completed: bookings.filter((booking) => booking.status === "completed")
+        .length,
+      cancelled: bookings.filter((booking) => booking.status === "cancelled")
+        .length,
       estimated: bookings.reduce(
         (sum, booking) => sum + (booking.estimatedTotal || 0),
         0,
@@ -276,20 +476,6 @@ export function AdminBookings() {
     });
   }, [bookings, filter, search]);
 
-  async function login() {
-    setAuthLoading(true);
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro desconhecido.";
-      alert(`Erro Firebase: ${message}`);
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
   async function updateStatus(id: string, status: BookingStatus) {
     setUpdatingId(id);
 
@@ -300,26 +486,34 @@ export function AdminBookings() {
         throw new Error("Reserva não encontrada.");
       }
 
-      const today = getSaoTomeToday();
+      const now = new Date();
+      const pickupAt = createBookingDateTime(
+        booking.pickupDate,
+        booking.pickupTime,
+      );
+      const returnAt = createBookingDateTime(
+        booking.returnDate,
+        booking.returnTime || "23:59",
+      );
 
       if (status === "in_progress") {
-        if (!booking.pickupDate || !booking.returnDate) {
+        if (!pickupAt || !returnAt) {
           alert(
             "Não é possível colocar esta reserva em curso porque as datas não estão registadas.",
           );
           return;
         }
 
-        if (today < booking.pickupDate) {
+        if (now < pickupAt) {
           alert(
-            `O aluguer só pode ficar Em curso a partir de ${booking.pickupDate}.`,
+            `O aluguer só pode ficar Em curso a partir de ${formatBookingDateTime(booking.pickupDate, booking.pickupTime)}.`,
           );
           return;
         }
 
-        if (today >= booking.returnDate) {
+        if (now >= returnAt) {
           alert(
-            `O período do aluguer terminou em ${booking.returnDate}. Marca a reserva como Concluída.`,
+            `O período do aluguer terminou em ${formatBookingDateTime(booking.returnDate, booking.returnTime)}. Regista a devolução.`,
           );
           return;
         }
@@ -333,16 +527,9 @@ export function AdminBookings() {
       }
 
       if (status === "completed") {
-        if (!booking.returnDate) {
+        if (!returnAt) {
           alert(
             "Não é possível concluir esta reserva porque a data de devolução não está registada.",
-          );
-          return;
-        }
-
-        if (today < booking.returnDate) {
-          alert(
-            `Esta reserva ainda está dentro do período de aluguer. Só pode ser concluída em ${booking.returnDate} ou depois.`,
           );
           return;
         }
@@ -353,16 +540,29 @@ export function AdminBookings() {
           );
           return;
         }
+
+        if (now < returnAt) {
+          const confirmedEarlyReturn = window.confirm(
+            `Esta reserva termina em ${formatBookingDateTime(
+              booking.returnDate,
+              booking.returnTime,
+            )}.
+
+Confirma que o cliente devolveu a viatura antecipadamente?
+
+Ao continuar, a reserva será marcada como Concluída e a viatura ficará disponível.`,
+          );
+
+          if (!confirmedEarlyReturn) {
+            return;
+          }
+        }
       }
 
       const lockRef = doc(db, "availabilityLocks", id);
 
       if (status === "confirmed" || status === "in_progress") {
-        if (
-          !booking.carId ||
-          !booking.pickupDate ||
-          !booking.returnDate
-        ) {
+        if (!booking.carId || !booking.pickupDate || !booking.returnDate) {
           throw new Error("A reserva não tem carro ou datas válidas.");
         }
 
@@ -378,15 +578,36 @@ export function AdminBookings() {
 
           const lock = item.data() as {
             pickupDate?: string;
+            pickupTime?: string;
             returnDate?: string;
+            returnTime?: string;
           };
 
-          if (!lock.pickupDate || !lock.returnDate) return false;
-
-          return (
-            booking.pickupDate! < lock.returnDate &&
-            booking.returnDate! > lock.pickupDate
+          const currentPickup = createBookingDateTime(
+            booking.pickupDate,
+            booking.pickupTime,
           );
+          const currentReturn = createBookingDateTime(
+            booking.returnDate,
+            booking.returnTime || "23:59",
+          );
+          const lockedPickup = createBookingDateTime(
+            lock.pickupDate,
+            lock.pickupTime,
+          );
+          const lockedReturn = createBookingDateTime(
+            lock.returnDate,
+            lock.returnTime || "23:59",
+          );
+
+          if (
+            !currentPickup ||
+            !currentReturn ||
+            !lockedPickup ||
+            !lockedReturn
+          )
+            return false;
+          return currentPickup < lockedReturn && currentReturn > lockedPickup;
         });
 
         if (hasConflict) {
@@ -401,7 +622,9 @@ export function AdminBookings() {
           reference: booking.reference || "",
           carId: booking.carId,
           pickupDate: booking.pickupDate,
+          pickupTime: booking.pickupTime || "00:00",
           returnDate: booking.returnDate,
+          returnTime: booking.returnTime || "23:59",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -411,6 +634,12 @@ export function AdminBookings() {
 
       await updateDoc(doc(db, "bookings", id), {
         status,
+        ...(status === "completed"
+          ? {
+              actualReturnAt: serverTimestamp(),
+              completedAt: serverTimestamp(),
+            }
+          : {}),
         updatedAt: serverTimestamp(),
       });
 
@@ -429,7 +658,6 @@ export function AdminBookings() {
       setUpdatingId("");
     }
   }
-
 
   async function updateOperationalField(
     booking: Booking,
@@ -502,10 +730,7 @@ export function AdminBookings() {
     );
   }
 
-  function updateDriverDraft(
-    booking: Booking,
-    values: Partial<DriverDetails>,
-  ) {
+  function updateDriverDraft(booking: Booking, values: Partial<DriverDetails>) {
     const current = getDriverDraft(booking);
 
     setDriverDrafts((drafts) => ({
@@ -562,8 +787,7 @@ export function AdminBookings() {
 
     const savedDriver: DriverDetails = {
       documentNumber: driver.documentNumber?.trim() || "",
-      drivingLicenceNumber:
-        driver.drivingLicenceNumber?.trim() || "",
+      drivingLicenceNumber: driver.drivingLicenceNumber?.trim() || "",
       drivingLicenceExpiry: driver.drivingLicenceExpiry || "",
       nationality: driver.nationality?.trim() || "",
       address: driver.address?.trim() || "",
@@ -607,22 +831,37 @@ export function AdminBookings() {
     }
   }
 
-  function getInspectionDraft(
-    booking: Booking,
-    type: "checkout" | "checkin",
-  ) {
+  function getInspectionDraft(booking: Booking, type: "checkout" | "checkin") {
     const key = `${booking.id}-${type}`;
 
     return (
       inspectionDrafts[key] ??
       booking[type] ?? {
+        registrationPlate: booking.carRegistrationPlate ?? "",
         mileage: undefined,
         fuelLevel: "full",
         condition: "good",
         notes: "",
+        photoUrls: [],
+        inspectionPhotos: {},
+        customerSignatureUrl: "",
+        customerSignedAt: "",
+        staffSignatureUrl: "",
+        staffSignedAt: "",
         hasDamage: false,
         damageDescription: "",
         damageAmount: 0,
+        damageZones: [],
+        fuelCharge: 0,
+        cleaningRequired: false,
+        cleaningNotes: "",
+        cleaningAmount: 0,
+        depositReceived: false,
+        depositPaymentMethod: undefined,
+        depositAmount: Math.max(0, Number(booking.refundableDeposit) || 0),
+        depositRefundAmount: 0,
+        depositRetainedAmount: 0,
+        additionalAmountDue: 0,
         completed: false,
       }
     );
@@ -645,6 +884,337 @@ export function AdminBookings() {
     }));
   }
 
+  async function uploadInspectionSignature(
+    booking: Booking,
+    type: "checkout" | "checkin",
+    signer: "customer" | "staff",
+    signatureBlob: Blob,
+  ) {
+    const inspection = getInspectionDraft(booking, type);
+    const fieldName =
+      signer === "customer" ? "customerSignatureUrl" : "staffSignatureUrl";
+    const signedAtField =
+      signer === "customer" ? "customerSignedAt" : "staffSignedAt";
+
+    setUpdatingId(booking.id);
+
+    try {
+      const previousUrl = inspection[fieldName];
+
+      if (previousUrl) {
+        try {
+          await deleteObject(ref(storage, previousUrl));
+        } catch {
+          // A nova assinatura pode substituir um ficheiro antigo
+          // mesmo que o anterior já não exista no Storage.
+        }
+      }
+
+      const signatureRef = ref(
+        storage,
+        `booking-inspections/${booking.id}/${type}/signature-${signer}-${Date.now()}.png`,
+      );
+
+      await uploadBytes(signatureRef, signatureBlob, {
+        contentType: "image/png",
+        customMetadata: {
+          bookingId: booking.id,
+          inspectionType: type,
+          signer,
+        },
+      });
+
+      const signatureUrl = await getDownloadURL(signatureRef);
+      const signedAt = new Date().toISOString();
+
+      const signatureUpdate = {
+        [fieldName]: signatureUrl,
+        [signedAtField]: signedAt,
+      };
+
+      updateInspectionDraft(booking, type, signatureUpdate);
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        [`${type}.${fieldName}`]: signatureUrl,
+        [`${type}.${signedAtField}`]: signedAt,
+        updatedAt: serverTimestamp(),
+      });
+
+      alert(
+        signer === "customer"
+          ? "Assinatura do cliente guardada."
+          : "Assinatura do funcionário guardada.",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível guardar a assinatura: ${message}`);
+      throw error;
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function deleteInspectionSignature(
+    booking: Booking,
+    type: "checkout" | "checkin",
+    signer: "customer" | "staff",
+  ) {
+    const inspection = getInspectionDraft(booking, type);
+    const fieldName =
+      signer === "customer" ? "customerSignatureUrl" : "staffSignatureUrl";
+    const signedAtField =
+      signer === "customer" ? "customerSignedAt" : "staffSignedAt";
+    const signatureUrl = inspection[fieldName];
+
+    if (!signatureUrl) {
+      return;
+    }
+
+    setUpdatingId(booking.id);
+
+    try {
+      await deleteObject(ref(storage, signatureUrl));
+
+      const signatureUpdate = {
+        [fieldName]: "",
+        [signedAtField]: "",
+      };
+
+      updateInspectionDraft(booking, type, signatureUpdate);
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        [`${type}.${fieldName}`]: "",
+        [`${type}.${signedAtField}`]: "",
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível eliminar a assinatura: ${message}`);
+      throw error;
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function uploadInspectionPhotos(
+    booking: Booking,
+    type: "checkout" | "checkin",
+    files: FileList | null,
+  ) {
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const inspection = getInspectionDraft(booking, type);
+    const currentPhotoUrls = inspection.photoUrls ?? [];
+    const selectedFiles = Array.from(files);
+
+    if (currentPhotoUrls.length + selectedFiles.length > 12) {
+      alert(
+        `Cada inspeção pode ter no máximo 12 fotografias. Já existem ${currentPhotoUrls.length}.`,
+      );
+      return;
+    }
+
+    const invalidType = selectedFiles.find(
+      (file) => !file.type.startsWith("image/"),
+    );
+
+    if (invalidType) {
+      alert(`O ficheiro "${invalidType.name}" não é uma imagem válida.`);
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find(
+      (file) => file.size > 10 * 1024 * 1024,
+    );
+
+    if (oversizedFile) {
+      alert(
+        `A fotografia "${oversizedFile.name}" ultrapassa o limite de 10 MB.`,
+      );
+      return;
+    }
+
+    setUpdatingId(booking.id);
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const file of selectedFiles) {
+        const safeName = file.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9._-]/g, "-")
+          .replace(/-+/g, "-");
+
+        const uniqueId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        const photoRef = ref(
+          storage,
+          `booking-inspections/${booking.id}/${type}/${uniqueId}-${safeName}`,
+        );
+
+        await uploadBytes(photoRef, file, {
+          contentType: file.type,
+          customMetadata: {
+            bookingId: booking.id,
+            inspectionType: type,
+          },
+        });
+
+        uploadedUrls.push(await getDownloadURL(photoRef));
+      }
+
+      updateInspectionDraft(booking, type, {
+        photoUrls: [...currentPhotoUrls, ...uploadedUrls],
+      });
+
+      alert(
+        uploadedUrls.length === 1
+          ? "Fotografia adicionada. Guarda a inspeção para confirmar o registo."
+          : `${uploadedUrls.length} fotografias adicionadas. Guarda a inspeção para confirmar o registo.`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível enviar as fotografias: ${message}`);
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function uploadInspectionPhotoSlot(
+    booking: Booking,
+    type: "checkout" | "checkin",
+    slot: "front" | "rear" | "left" | "right" | "interior" | "dashboard",
+    file: File | null,
+  ) {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Seleciona uma imagem válida.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("A fotografia ultrapassa o limite de 10 MB.");
+      return;
+    }
+
+    const inspection = getInspectionDraft(booking, type);
+
+    const safeName = file.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "-")
+      .replace(/-+/g, "-");
+
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    setUpdatingId(booking.id);
+
+    try {
+      const photoRef = ref(
+        storage,
+        `booking-inspections/${booking.id}/${type}/slots/${slot}/${uniqueId}-${safeName}`,
+      );
+
+      await uploadBytes(photoRef, file, {
+        contentType: file.type,
+        customMetadata: {
+          bookingId: booking.id,
+          inspectionType: type,
+          photoSlot: slot,
+        },
+      });
+
+      const url = await getDownloadURL(photoRef);
+
+      const nextInspectionPhotos = {
+        ...(inspection.inspectionPhotos ?? {}),
+        [slot]: url,
+      };
+
+      const nextPhotoUrls = Array.from(
+        new Set([...(inspection.photoUrls ?? []), url]),
+      );
+
+      updateInspectionDraft(booking, type, {
+        inspectionPhotos: nextInspectionPhotos,
+        photoUrls: nextPhotoUrls,
+      });
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        [`${type}.inspectionPhotos.${slot}`]: url,
+        [`${type}.photoUrls`]: nextPhotoUrls,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível guardar a fotografia: ${message}`);
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function deleteInspectionPhoto(
+    booking: Booking,
+    type: "checkout" | "checkin",
+    photoUrl: string,
+  ) {
+    const confirmed = window.confirm(
+      "Pretendes eliminar esta fotografia da inspeção?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const inspection = getInspectionDraft(booking, type);
+
+    setUpdatingId(booking.id);
+
+    try {
+      await deleteObject(ref(storage, photoUrl));
+
+      const nextPhotoUrls = (inspection.photoUrls ?? []).filter(
+        (url) => url !== photoUrl,
+      );
+
+      updateInspectionDraft(booking, type, {
+        photoUrls: nextPhotoUrls,
+      });
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        [`${type}.photoUrls`]: nextPhotoUrls,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível eliminar a fotografia: ${message}`);
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
   async function saveInspection(
     booking: Booking,
     type: "checkout" | "checkin",
@@ -661,6 +1231,33 @@ export function AdminBookings() {
         alert(driverValidationError);
         return;
       }
+    }
+
+    if (
+      type === "checkout" &&
+      Number(booking.refundableDeposit || 0) > 0 &&
+      !inspection.depositReceived
+    ) {
+      alert("Confirma que a caução foi recebida antes de registar a entrega.");
+      return;
+    }
+
+    if (
+      type === "checkout" &&
+      Number(booking.refundableDeposit || 0) > 0 &&
+      !inspection.depositPaymentMethod
+    ) {
+      alert("Seleciona o método de pagamento da caução.");
+      return;
+    }
+
+    if (!inspection.registrationPlate?.trim()) {
+      alert(
+        type === "checkout"
+          ? "Introduz a matrícula da viatura antes de registar a entrega."
+          : "Confirma a matrícula da viatura antes de registar a devolução.",
+      );
+      return;
     }
 
     if (
@@ -693,6 +1290,54 @@ export function AdminBookings() {
       return;
     }
 
+    const fuelRank: Record<FuelLevel, number> = {
+      empty: 0,
+      one_eighth: 1,
+      quarter: 2,
+      three_eighths: 3,
+      half: 4,
+      five_eighths: 5,
+      three_quarters: 6,
+      seven_eighths: 7,
+      full: 8,
+    };
+
+    if (
+      type === "checkin" &&
+      inspection.cleaningRequired &&
+      !inspection.cleaningNotes?.trim()
+    ) {
+      alert("Descreve o motivo da limpeza especial.");
+      return;
+    }
+
+    if (
+      type === "checkin" &&
+      inspection.cleaningRequired &&
+      (!Number.isFinite(Number(inspection.cleaningAmount)) ||
+        Number(inspection.cleaningAmount) <= 0)
+    ) {
+      alert("Indica um valor válido para a limpeza especial.");
+      return;
+    }
+
+    const returnedWithLessFuel =
+      type === "checkin" &&
+      Boolean(booking.checkout?.fuelLevel) &&
+      Boolean(inspection.fuelLevel) &&
+      fuelRank[inspection.fuelLevel!] < fuelRank[booking.checkout!.fuelLevel!];
+
+    if (
+      returnedWithLessFuel &&
+      (!Number.isFinite(inspection.fuelCharge) ||
+        Number(inspection.fuelCharge) <= 0)
+    ) {
+      alert(
+        "O veículo foi devolvido com menos combustível. Introduz o valor a cobrar pela reposição.",
+      );
+      return;
+    }
+
     if (
       type === "checkin" &&
       inspection.hasDamage &&
@@ -702,11 +1347,49 @@ export function AdminBookings() {
       return;
     }
 
+    const depositAmount = Math.max(
+      0,
+      Number(
+        booking.checkout?.depositAmount ?? booking.refundableDeposit ?? 0,
+      ) || 0,
+    );
+
+    const fuelDeduction =
+      type === "checkin" ? Math.max(0, Number(inspection.fuelCharge) || 0) : 0;
+
+    const damageDeduction =
+      type === "checkin" && inspection.hasDamage
+        ? Math.max(0, Number(inspection.damageAmount) || 0)
+        : 0;
+
+    const cleaningDeduction =
+      type === "checkin" && inspection.cleaningRequired
+        ? Math.max(0, Number(inspection.cleaningAmount) || 0)
+        : 0;
+
+    const totalDeductions = fuelDeduction + damageDeduction + cleaningDeduction;
+
+    const depositRetainedAmount =
+      type === "checkin" ? Math.min(depositAmount, totalDeductions) : 0;
+
+    const depositRefundAmount =
+      type === "checkin" ? Math.max(0, depositAmount - totalDeductions) : 0;
+
+    const additionalAmountDue =
+      type === "checkin" ? Math.max(0, totalDeductions - depositAmount) : 0;
+
     const savedInspection: VehicleInspection = {
+      registrationPlate: inspection.registrationPlate.trim().toUpperCase(),
       mileage: inspection.mileage,
       fuelLevel: inspection.fuelLevel,
       condition: inspection.condition,
       notes: inspection.notes?.trim() || "",
+      photoUrls: inspection.photoUrls ?? [],
+      inspectionPhotos: inspection.inspectionPhotos ?? {},
+      customerSignatureUrl: inspection.customerSignatureUrl || "",
+      customerSignedAt: inspection.customerSignedAt || "",
+      staffSignatureUrl: inspection.staffSignatureUrl || "",
+      staffSignedAt: inspection.staffSignedAt || "",
       hasDamage: type === "checkin" ? Boolean(inspection.hasDamage) : false,
       damageDescription:
         type === "checkin" && inspection.hasDamage
@@ -716,16 +1399,81 @@ export function AdminBookings() {
         type === "checkin" && inspection.hasDamage
           ? Math.max(0, Number(inspection.damageAmount) || 0)
           : 0,
+      damageZones: inspection.hasDamage ? (inspection.damageZones ?? []) : [],
+      cleaningRequired:
+        type === "checkin" ? Boolean(inspection.cleaningRequired) : false,
+      cleaningNotes:
+        type === "checkin" && inspection.cleaningRequired
+          ? inspection.cleaningNotes?.trim() || ""
+          : "",
+      cleaningAmount:
+        type === "checkin" && inspection.cleaningRequired
+          ? Math.max(0, Number(inspection.cleaningAmount) || 0)
+          : 0,
+      fuelCharge:
+        type === "checkin"
+          ? Math.max(0, Number(inspection.fuelCharge) || 0)
+          : 0,
+      depositReceived:
+        type === "checkout"
+          ? Boolean(inspection.depositReceived)
+          : Boolean(booking.checkout?.depositReceived),
+      depositPaymentMethod:
+        type === "checkout"
+          ? inspection.depositPaymentMethod
+          : booking.checkout?.depositPaymentMethod,
+      depositAmount,
+      depositRefundAmount,
+      depositRetainedAmount,
+      additionalAmountDue,
       completed: true,
     };
 
     setUpdatingId(booking.id);
 
     try {
-      await updateDoc(doc(db, "bookings", booking.id), {
+      const bookingUpdate: Record<string, unknown> = {
         [type]: savedInspection,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if (type === "checkout") {
+        bookingUpdate.status = "in_progress";
+
+        bookingUpdate.depositStatus =
+          depositAmount > 0 ? "received" : "pending";
+
+        bookingUpdate.deposit = {
+          amount: depositAmount,
+          received: Boolean(inspection.depositReceived),
+          paymentMethod: inspection.depositPaymentMethod || "",
+          receivedAt: serverTimestamp(),
+          status: depositAmount > 0 ? "received" : "pending",
+        };
+      }
+
+      if (type === "checkin") {
+        bookingUpdate.status = "completed";
+
+        bookingUpdate.depositStatus =
+          depositRetainedAmount > 0 ? "retained" : "returned";
+
+        bookingUpdate.depositSettlement = {
+          depositAmount,
+          fuelDeduction,
+          damageDeduction,
+          totalDeductions,
+          retainedAmount: depositRetainedAmount,
+          refundAmount: depositRefundAmount,
+          additionalAmountDue,
+          settledAt: serverTimestamp(),
+          status: "settled",
+        };
+      }
+
+      const cleanBookingUpdate = removeUndefinedValues(bookingUpdate);
+
+      await updateDoc(doc(db, "bookings", booking.id), cleanBookingUpdate);
 
       const key = `${booking.id}-${type}`;
 
@@ -735,11 +1483,57 @@ export function AdminBookings() {
         return nextDrafts;
       });
 
-      alert(
-        type === "checkout"
-          ? "Entrega do carro registada."
-          : "Devolução do carro registada.",
-      );
+      if (type === "checkin") {
+        let finalSheetNotice = "";
+
+        try {
+          if (!user) {
+            throw new Error("Sessão de Admin não disponível.");
+          }
+
+          const token = await user.getIdToken();
+
+          const response = await fetch("/api/admin/send-final-rental-sheet", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              bookingId: booking.id,
+            }),
+          });
+
+          const result = (await response.json()) as {
+            error?: string;
+            sentTo?: string;
+          };
+
+          if (!response.ok) {
+            throw new Error(
+              result.error || "Não foi possível enviar a ficha final.",
+            );
+          }
+
+          finalSheetNotice = `\n\n✓ Ficha final enviada para: ${
+            result.sentTo || booking.customerEmail || "cliente"
+          }`;
+        } catch (emailError) {
+          const emailMessage =
+            emailError instanceof Error
+              ? emailError.message
+              : "Erro desconhecido.";
+
+          finalSheetNotice =
+            "\n\n⚠ A devolução ficou concluída, " +
+            "mas a ficha final não foi enviada. " +
+            `Podes reenviar pela ficha da reserva.\n${emailMessage}`;
+        }
+
+        alert("Devolução do carro registada." + finalSheetNotice);
+      } else {
+        alert("Entrega do carro registada.");
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro desconhecido.";
@@ -764,18 +1558,20 @@ export function AdminBookings() {
             carBrand: booking.carBrand || "",
             carModel: booking.carModel || "",
             pickupDate: booking.pickupDate || "",
+            pickupTime: booking.pickupTime || "",
             returnDate: booking.returnDate || "",
+            returnTime: booking.returnTime || "",
+            rentalHours: booking.rentalHours ?? 0,
             totalDays: booking.totalDays ?? 0,
             rentalModeLabel: booking.rentalModeLabel || "",
             pricePerDay: booking.pricePerDay ?? 0,
             premiumPricePerDay: booking.premiumPricePerDay ?? 0,
             dailyRate: booking.dailyRate ?? booking.pricePerDay ?? 0,
             normalExcess: booking.normalExcess ?? 0,
-            appliedExcess:
-              booking.appliedExcess ?? booking.normalExcess ?? 0,
+            appliedExcess: booking.appliedExcess ?? booking.normalExcess ?? 0,
             refundableDeposit: booking.refundableDeposit ?? 0,
             estimatedTotal: booking.estimatedTotal ?? 0,
-            currency: booking.currency || "£",
+            currency: booking.currency || "€",
             paymentStatus: booking.paymentStatus ?? "pending",
             depositStatus: booking.depositStatus ?? "pending",
             updatedAt: serverTimestamp(),
@@ -798,32 +1594,11 @@ export function AdminBookings() {
     alert("Pedido copiado.");
   }
 
-  if (!user) {
+  if (authChecking || !user || !adminRole) {
     return (
       <main className="site">
         <section className="admin-login">
-          <p className="eyebrow">Admin 7Go</p>
-          <h1>Entrar no painel de reservas.</h1>
-
-          <div className="admin-login-card">
-            <label>
-              Email
-              <input value={email} onChange={(e) => setEmail(e.target.value)} />
-            </label>
-
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-
-            <button onClick={login} disabled={authLoading}>
-              {authLoading ? "A entrar..." : "Entrar"}
-            </button>
-          </div>
+          <p>A verificar acesso...</p>
         </section>
       </main>
     );
@@ -834,14 +1609,18 @@ export function AdminBookings() {
       <section className="admin-page">
         <div className="admin-top">
           <div>
-            <p className="eyebrow">Admin 7Go</p>
+            <p className="eyebrow">
+              {adminRole === "admin" ? "Admin 7Go" : "Funcionário 7Go"}
+            </p>
             <h1>Reservas</h1>
           </div>
 
           <div className="admin-top-actions">
-            <button type="button" onClick={syncPublicStatuses}>
-              Sincronizar reservas
-            </button>
+            {adminRole === "admin" && (
+              <button type="button" onClick={syncPublicStatuses}>
+                Sincronizar reservas
+              </button>
+            )}
 
             <button type="button" onClick={() => signOut(auth)}>
               Sair
@@ -850,13 +1629,36 @@ export function AdminBookings() {
         </div>
 
         <div className="admin-stats">
-          <article><span>Total</span><strong>{stats.total}</strong></article>
-          <article><span>Pendentes</span><strong>{stats.pending}</strong></article>
-          <article><span>Confirmadas</span><strong>{stats.confirmed}</strong></article>
-          <article><span>Em curso</span><strong>{stats.inProgress}</strong></article>
-          <article><span>Concluídas</span><strong>{stats.completed}</strong></article>
-          <article><span>Canceladas</span><strong>{stats.cancelled}</strong></article>
-          <article><span>Valor estimado</span><strong>£{stats.estimated}</strong></article>
+          <article>
+            <span>Total</span>
+            <strong>{stats.total}</strong>
+          </article>
+          <article>
+            <span>Pendentes</span>
+            <strong>{stats.pending}</strong>
+          </article>
+          <article>
+            <span>Confirmadas</span>
+            <strong>{stats.confirmed}</strong>
+          </article>
+          <article>
+            <span>Em curso</span>
+            <strong>{stats.inProgress}</strong>
+          </article>
+          <article>
+            <span>Concluídas</span>
+            <strong>{stats.completed}</strong>
+          </article>
+          <article>
+            <span>Canceladas</span>
+            <strong>{stats.cancelled}</strong>
+          </article>
+          {adminRole === "admin" && (
+            <article>
+              <span>Valor estimado</span>
+              <strong>£{stats.estimated}</strong>
+            </article>
+          )}
         </div>
 
         <div className="admin-filters">
@@ -866,7 +1668,10 @@ export function AdminBookings() {
             placeholder="Pesquisar por referência, cliente, carro ou contacto..."
           />
 
-          <select value={filter} onChange={(e) => setFilter(e.target.value as FilterStatus)}>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FilterStatus)}
+          >
             <option value="all">Todas</option>
             <option value="pending">Pendentes</option>
             <option value="confirmed">Confirmadas</option>
@@ -888,70 +1693,184 @@ export function AdminBookings() {
               )}`;
 
               return (
-                <article key={booking.id} className="admin-booking-card">
-                  <div className="admin-booking-main">
-                    <div className="admin-booking-labels">
-                      <span>{booking.reference || "Sem referência"}</span>
-                      <small className={statusClass[status]}>{statusLabel[status]}</small>
-                    </div>
+                <article
+                  key={booking.id}
+                  className={`admin-booking-card ${styles.bookingCard}`}
+                >
+                  <div className={`admin-booking-main ${styles.bookingMain}`}>
+                    <section className="admin-reservation-hero">
+                      <div className="admin-reservation-car">
+                        <div className="admin-reservation-car-image">
+                          <img
+                            src={getAdminCarImage(booking)}
+                            alt={`${booking.carBrand ?? ""} ${
+                              booking.carModel ?? ""
+                            }`}
+                          />
 
-                    <h2>{booking.carBrand} {booking.carModel}</h2>
+                          <span className="admin-reservation-car-year">
+                            {booking.carYear || "7GO"}
+                          </span>
+                        </div>
 
-                    <p><strong>Datas:</strong> {booking.pickupDate} → {booking.returnDate}</p>
-                    <p><strong>Cliente:</strong> {booking.customerName}</p>
-                    <p>
-                      <strong>Preço base/dia:</strong>{" "}
-                      {booking.currency}
-                      {booking.pricePerDay}
-                    </p>
+                        <div className="admin-reservation-car-caption">
+                          <span>Veículo reservado</span>
 
-                    <p>
-                      <strong>Preço final/dia:</strong>{" "}
-                      {booking.currency}
-                      {booking.dailyRate || booking.pricePerDay}
-                    </p>
+                          <strong>
+                            {booking.carBrand || "Veículo"}{" "}
+                            {booking.carModel || ""}
+                          </strong>
 
-                    <p>
-                      <strong>Franquia:</strong>{" "}
-                      {booking.currency}
-                      {booking.appliedExcess ??
-                        booking.normalExcess ??
-                        "Não registada"}
-                    </p>
+                          <small>
+                            {booking.carRegistrationPlate ||
+                              "Matrícula não registada"}
+                          </small>
+                        </div>
+                      </div>
 
-                    <p>
-                      <strong>Caução reembolsável:</strong>{" "}
-                      {booking.currency}
-                      {booking.refundableDeposit ?? "Não registada"}
-                    </p>
+                      <div className="admin-reservation-information">
+                        <div className="admin-reservation-heading">
+                          <div>
+                            <span className="admin-reservation-eyebrow">
+                              Reserva
+                            </span>
 
-                    <div className="admin-booking-actions">
-                      <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                        Contactar no WhatsApp
-                      </a>
+                            <h2>{booking.reference || "Sem referência"}</h2>
+                          </div>
 
-                      <button type="button" onClick={() => copyBooking(booking)}>
-                        Copiar pedido
-                      </button>
+                          <small
+                            className={`admin-reservation-status ${statusClass[status]}`}
+                          >
+                            {statusLabel[status]}
+                          </small>
+                        </div>
 
-                      <a
-                        href={`/admin/reservas/${booking.id}/ficha`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Ficha de aluguer
-                      </a>
-                    </div>
+                        <div className="admin-reservation-data-grid">
+                          <div>
+                            <span>Cliente</span>
+                            <strong>
+                              {booking.customerName || "Não informado"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>Email</span>
+                            <strong>
+                              {booking.customerEmail || "Não informado"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>Contacto</span>
+                            <strong>
+                              {booking.customerPhone || "Não informado"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>Matrícula</span>
+                            <strong>
+                              {booking.carRegistrationPlate || "Não registada"}
+                            </strong>
+                          </div>
+
+                          <div className="admin-reservation-period">
+                            <span>Período do aluguer</span>
+
+                            <strong>
+                              {formatBookingDateTime(
+                                booking.pickupDate,
+                                booking.pickupTime,
+                              )}{" "}
+                              →{" "}
+                              {formatBookingDateTime(
+                                booking.returnDate,
+                                booking.returnTime,
+                              )}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>Duração</span>
+                            <strong>
+                              {booking.totalDays || 0}{" "}
+                              {booking.totalDays === 1 ? "dia" : "dias"}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="admin-booking-actions">
+                          <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            WhatsApp
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => copyBooking(booking)}
+                          >
+                            Copiar pedido
+                          </button>
+
+                          <a
+                            href={`/admin/reservas/${booking.id}/ficha`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Ficha de aluguer
+                          </a>
+                        </div>
+                      </div>
+
+                      <aside className="admin-reservation-finance">
+                        <div className="admin-reservation-finance-card">
+                          <span>Estado do pagamento</span>
+
+                          <strong>
+                            {
+                              paymentStatusLabel[
+                                booking.paymentStatus ?? "pending"
+                              ]
+                            }
+                          </strong>
+                        </div>
+
+                        <div className="admin-reservation-finance-card">
+                          <span>Estado da caução</span>
+
+                          <strong>
+                            {
+                              depositStatusLabel[
+                                booking.depositStatus ?? "pending"
+                              ]
+                            }
+                          </strong>
+                        </div>
+
+                        <div className="admin-reservation-finance-card admin-reservation-total">
+                          <span>Total da reserva</span>
+
+                          <strong>
+                            {booking.currency || "€"}{" "}
+                            {Number(booking.estimatedTotal || 0).toFixed(2)}
+                          </strong>
+                        </div>
+                      </aside>
+                    </section>
                   </div>
 
-                  <div className="admin-booking-middle">
+                  <div
+                    className={`admin-booking-middle ${styles.bookingMiddle}`}
+                  >
                     <p>
                       <strong>Dias:</strong> {booking.totalDays}
                     </p>
 
                     <p>
-                      <strong>Modalidade:</strong>{" "}
-                      {booking.rentalModeLabel}
+                      <strong>Modalidade:</strong> {booking.rentalModeLabel}
                     </p>
 
                     <p>
@@ -960,8 +1879,7 @@ export function AdminBookings() {
                     </p>
 
                     <p>
-                      <strong>Contacto:</strong>{" "}
-                      {booking.customerPhone}
+                      <strong>Contacto:</strong> {booking.customerPhone}
                     </p>
 
                     <details className="admin-management-panel admin-driver-panel">
@@ -1043,9 +1961,7 @@ export function AdminBookings() {
                             <label className="admin-driver-check">
                               <input
                                 type="checkbox"
-                                checked={Boolean(
-                                  driver.secondDriverEnabled,
-                                )}
+                                checked={Boolean(driver.secondDriverEnabled)}
                                 onChange={(e) =>
                                   updateDriverDraft(booking, {
                                     secondDriverEnabled: e.target.checked,
@@ -1136,314 +2052,144 @@ export function AdminBookings() {
                       <span>
                         Pagamento:{" "}
                         <strong>
-                          {paymentStatusLabel[
-                            booking.paymentStatus ?? "pending"
-                          ]}
+                          {
+                            paymentStatusLabel[
+                              booking.paymentStatus ?? "pending"
+                            ]
+                          }
                         </strong>
                       </span>
 
                       <span>
                         Caução:{" "}
                         <strong>
-                          {depositStatusLabel[
-                            booking.depositStatus ?? "pending"
-                          ]}
+                          {
+                            depositStatusLabel[
+                              booking.depositStatus ?? "pending"
+                            ]
+                          }
                         </strong>
                       </span>
                     </div>
 
-                    <details className="admin-management-panel">
-                      <summary>Gerir pagamento, caução e notas</summary>
+                    {adminRole === "admin" && (
+                      <details className="admin-management-panel">
+                        <summary>Gerir pagamento, caução e notas</summary>
 
-                      <div className="admin-operation-controls">
-                        <label>
-                          Pagamento
-                          <select
-                            value={booking.paymentStatus ?? "pending"}
+                        <div className="admin-operation-controls">
+                          <label>
+                            Pagamento
+                            <select
+                              value={booking.paymentStatus ?? "pending"}
+                              disabled={updatingId === booking.id}
+                              onChange={(e) =>
+                                updateOperationalField(
+                                  booking,
+                                  "paymentStatus",
+                                  e.target.value as PaymentStatus,
+                                )
+                              }
+                            >
+                              <option value="pending">
+                                {paymentStatusLabel.pending}
+                              </option>
+                              <option value="partial">
+                                {paymentStatusLabel.partial}
+                              </option>
+                              <option value="paid">
+                                {paymentStatusLabel.paid}
+                              </option>
+                            </select>
+                          </label>
+
+                          <label>
+                            Caução
+                            <select
+                              value={booking.depositStatus ?? "pending"}
+                              disabled={updatingId === booking.id}
+                              onChange={(e) =>
+                                updateOperationalField(
+                                  booking,
+                                  "depositStatus",
+                                  e.target.value as DepositStatus,
+                                )
+                              }
+                            >
+                              <option value="pending">
+                                {depositStatusLabel.pending}
+                              </option>
+                              <option value="received">
+                                {depositStatusLabel.received}
+                              </option>
+                              <option value="returned">
+                                {depositStatusLabel.returned}
+                              </option>
+                              <option value="retained">
+                                {depositStatusLabel.retained}
+                              </option>
+                            </select>
+                          </label>
+
+                          <label className="admin-internal-notes">
+                            Observações internas
+                            <textarea
+                              value={
+                                notesDraft[booking.id] ??
+                                booking.internalNotes ??
+                                ""
+                              }
+                              onChange={(e) =>
+                                setNotesDraft((current) => ({
+                                  ...current,
+                                  [booking.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Notas privadas da equipa 7Go..."
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => saveInternalNotes(booking)}
                             disabled={updatingId === booking.id}
-                            onChange={(e) =>
-                              updateOperationalField(
-                                booking,
-                                "paymentStatus",
-                                e.target.value as PaymentStatus,
-                              )
-                            }
                           >
-                            <option value="pending">
-                              {paymentStatusLabel.pending}
-                            </option>
-                            <option value="partial">
-                              {paymentStatusLabel.partial}
-                            </option>
-                            <option value="paid">
-                              {paymentStatusLabel.paid}
-                            </option>
-                          </select>
-                        </label>
-
-                        <label>
-                          Caução
-                          <select
-                            value={booking.depositStatus ?? "pending"}
-                            disabled={updatingId === booking.id}
-                            onChange={(e) =>
-                              updateOperationalField(
-                                booking,
-                                "depositStatus",
-                                e.target.value as DepositStatus,
-                              )
-                            }
-                          >
-                            <option value="pending">
-                              {depositStatusLabel.pending}
-                            </option>
-                            <option value="received">
-                              {depositStatusLabel.received}
-                            </option>
-                            <option value="returned">
-                              {depositStatusLabel.returned}
-                            </option>
-                            <option value="retained">
-                              {depositStatusLabel.retained}
-                            </option>
-                          </select>
-                        </label>
-
-                        <label className="admin-internal-notes">
-                          Observações internas
-                          <textarea
-                            value={
-                              notesDraft[booking.id] ??
-                              booking.internalNotes ??
-                              ""
-                            }
-                            onChange={(e) =>
-                              setNotesDraft((current) => ({
-                                ...current,
-                                [booking.id]: e.target.value,
-                              }))
-                            }
-                            placeholder="Notas privadas da equipa 7Go..."
-                          />
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() => saveInternalNotes(booking)}
-                          disabled={updatingId === booking.id}
-                        >
-                          Guardar observações
-                        </button>
-                      </div>
-                    </details>
+                            Guardar observações
+                          </button>
+                        </div>
+                      </details>
+                    )}
                   </div>
 
-                  <div className="admin-booking-side">
-                    <strong>{booking.currency}{booking.estimatedTotal}</strong>
+                  <div className={`admin-booking-side ${styles.bookingSide}`}>
+                    <strong>
+                      {booking.currency}
+                      {booking.estimatedTotal}
+                    </strong>
 
                     {(status === "confirmed" ||
                       status === "in_progress" ||
                       status === "completed") && (
-                      <div className="admin-vehicle-inspections">
-                        {(["checkout", "checkin"] as const)
-                          .filter(
-                            (type) =>
-                              type === "checkout" ||
-                              status === "in_progress" ||
-                              status === "completed",
-                          )
-                          .map((type) => {
-                            const inspection = getInspectionDraft(
-                              booking,
-                              type,
-                            );
-                            const isCheckin = type === "checkin";
-
-                            return (
-                              <details
-                                key={type}
-                                className="admin-inspection-panel"
-                              >
-                                <summary>
-                                  <span>
-                                    {isCheckin
-                                      ? "Devolução do carro"
-                                      : "Entrega do carro"}
-                                  </span>
-
-                                  <small>
-                                    {inspection.completed
-                                      ? "Registada"
-                                      : "Por registar"}
-                                  </small>
-                                </summary>
-
-                                <div className="admin-vehicle-inspection">
-
-                            <label>
-                              Quilometragem
-                              <input
-                                type="number"
-                                min="0"
-                                value={inspection.mileage ?? ""}
-                                onChange={(e) =>
-                                  updateInspectionDraft(booking, type, {
-                                    mileage:
-                                      e.target.value === ""
-                                        ? undefined
-                                        : Number(e.target.value),
-                                  })
-                                }
-                                placeholder="Ex.: 82500"
-                              />
-                            </label>
-
-                            <label>
-                              Combustível
-                              <select
-                                value={inspection.fuelLevel ?? "full"}
-                                onChange={(e) =>
-                                  updateInspectionDraft(booking, type, {
-                                    fuelLevel: e.target.value as FuelLevel,
-                                  })
-                                }
-                              >
-                                {Object.entries(fuelLevelLabel).map(
-                                  ([value, label]) => (
-                                    <option key={value} value={value}>
-                                      {label}
-                                    </option>
-                                  ),
-                                )}
-                              </select>
-                            </label>
-
-                            <label>
-                              Estado do carro
-                              <select
-                                value={inspection.condition ?? "good"}
-                                onChange={(e) =>
-                                  updateInspectionDraft(booking, type, {
-                                    condition:
-                                      e.target.value as VehicleCondition,
-                                  })
-                                }
-                              >
-                                {Object.entries(vehicleConditionLabel).map(
-                                  ([value, label]) => (
-                                    <option key={value} value={value}>
-                                      {label}
-                                    </option>
-                                  ),
-                                )}
-                              </select>
-                            </label>
-
-                            <label>
-                              Observações
-                              <textarea
-                                value={inspection.notes ?? ""}
-                                onChange={(e) =>
-                                  updateInspectionDraft(booking, type, {
-                                    notes: e.target.value,
-                                  })
-                                }
-                                placeholder={
-                                  isCheckin
-                                    ? "Estado geral na devolução..."
-                                    : "Riscos ou marcas já existentes..."
-                                }
-                              />
-                            </label>
-
-                            {isCheckin && (
-                              <>
-                                <label className="admin-damage-check">
-                                  <input
-                                    type="checkbox"
-                                    checked={Boolean(inspection.hasDamage)}
-                                    onChange={(e) =>
-                                      updateInspectionDraft(booking, type, {
-                                        hasDamage: e.target.checked,
-                                      })
-                                    }
-                                  />
-                                  Foram encontrados novos danos
-                                </label>
-
-                                {inspection.hasDamage && (
-                                  <>
-                                    <label>
-                                      Descrição dos danos
-                                      <textarea
-                                        value={
-                                          inspection.damageDescription ?? ""
-                                        }
-                                        onChange={(e) =>
-                                          updateInspectionDraft(
-                                            booking,
-                                            type,
-                                            {
-                                              damageDescription:
-                                                e.target.value,
-                                            },
-                                          )
-                                        }
-                                        placeholder="Descreve os danos encontrados..."
-                                      />
-                                    </label>
-
-                                    <label>
-                                      Valor associado
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={
-                                          inspection.damageAmount ?? 0
-                                        }
-                                        onChange={(e) =>
-                                          updateInspectionDraft(
-                                            booking,
-                                            type,
-                                            {
-                                              damageAmount:
-                                                Number(e.target.value) || 0,
-                                            },
-                                          )
-                                        }
-                                      />
-                                    </label>
-                                  </>
-                                )}
-                              </>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                saveInspection(booking, type)
-                              }
-                              disabled={updatingId === booking.id}
-                            >
-                              {inspection.completed
-                                ? "Atualizar registo"
-                                : isCheckin
-                                  ? "Registar devolução"
-                                  : "Registar entrega"}
-                            </button>
-                                </div>
-                              </details>
-                            );
-                          })}
-                      </div>
+                      <AdminInspectionPanel
+                        booking={booking}
+                        status={status}
+                        updatingId={updatingId}
+                        getInspectionDraft={getInspectionDraft}
+                        updateInspectionDraft={updateInspectionDraft}
+                        uploadInspectionPhotos={uploadInspectionPhotos}
+                        deleteInspectionPhoto={deleteInspectionPhoto}
+                        uploadInspectionSignature={uploadInspectionSignature}
+                        deleteInspectionSignature={deleteInspectionSignature}
+                        saveInspection={saveInspection}
+                      />
                     )}
-
                     <select
                       value={status}
                       disabled={updatingId === booking.id}
                       onChange={(e) =>
-                        updateStatus(booking.id, e.target.value as BookingStatus)
+                        updateStatus(
+                          booking.id,
+                          e.target.value as BookingStatus,
+                        )
                       }
                     >
                       <option value="pending">Pendente</option>

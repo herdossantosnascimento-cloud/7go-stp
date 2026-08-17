@@ -46,16 +46,18 @@ export function PublicCarDetail({ fallbackCar }: { fallbackCar: Car }) {
       </Link>
 
       <div className="car-detail-grid">
-        <div className="car-detail-media">
-          <div className="showcase-glow" />
+        <div className="car-detail-sticky">
+          <div className="car-detail-media">
+            <div className="showcase-glow" />
 
-          <Image
-            src={car.image}
-            alt={`${car.brand} ${car.model}`}
-            fill
-            priority
-            sizes="(max-width: 900px) 100vw, 56vw"
-          />
+            <Image
+              src={car.image}
+              alt={`${car.brand} ${car.model}`}
+              fill
+              priority
+              sizes="(max-width: 900px) 100vw, 56vw"
+            />
+          </div>
         </div>
 
         <div className="car-detail-info">

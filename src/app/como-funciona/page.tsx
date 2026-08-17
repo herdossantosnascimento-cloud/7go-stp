@@ -27,7 +27,7 @@ export default function ComoFuncionaPage() {
           <Link href="/#contacto">Contacto</Link>
         </nav>
 
-        <button className="login-button">Entrar</button>
+        <a href="/acesso" className="login-button">Entrar</a>
       </header>
 
       <section className="how-page how-page-protection">

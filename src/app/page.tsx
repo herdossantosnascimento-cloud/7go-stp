@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { brand } from "@/config/brand";
 import { PublicHomeFleet } from "@/components/fleet/PublicHomeFleet";
+import { HomeAuthNav } from "@/components/auth/HomeAuthNav";
 
 export default function Home() {
   return (
@@ -18,14 +19,16 @@ export default function Home() {
         </a>
 
         <nav>
-          <a className="active" href="/">Início</a>
+          <a className="active" href="/">
+            Início
+          </a>
           <a href="#frota">Carros</a>
           <a href="/como-funciona">Como funciona</a>
           <a href="/minha-reserva">Minha reserva</a>
           <a href="#contacto">Contacto</a>
         </nav>
 
-        <button className="login-button">Entrar</button>
+        <HomeAuthNav />
       </header>
 
       <PublicHomeFleet />

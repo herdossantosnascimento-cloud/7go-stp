@@ -4,23 +4,53 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
   setDoc,
   where,
 } from "firebase/firestore";
-import { useMemo, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useMemo, useState } from "react";
+import {
+  PaymentMethodModal,
+  type PaymentChoice,
+} from "@/components/payment/PaymentMethodModal";
 import type { Car } from "@/data/cars";
-import { db } from "@/lib/firebase/client";
+import { db, auth } from "@/lib/firebase/client";
 
 type RentalMode = "normal" | "premium";
 
 type AvailabilityLock = {
   carId?: string;
   pickupDate?: string;
+  pickupTime?: string;
   returnDate?: string;
+  returnTime?: string;
 };
+
+const MILLISECONDS_PER_HOUR = 1000 * 60 * 60;
+const MILLISECONDS_PER_DAY = MILLISECONDS_PER_HOUR * 24;
+
+const operatingHours = Array.from({ length: 21 }, (_, index) => {
+  const totalMinutes = 8 * 60 + index * 30;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0",
+  )}`;
+});
+
+function createRentalDateTime(date: string, time: string) {
+  if (!date || !time) return null;
+
+  const value = new Date(`${date}T${time}:00`);
+
+  return Number.isNaN(value.getTime()) ? null : value;
+}
 
 const whatsappNumber = "41796600932";
 
@@ -30,37 +60,158 @@ function createReference() {
 
 function datesOverlap(
   pickupDate: string,
+  pickupTime: string,
   returnDate: string,
-  lockedPickup: string,
-  lockedReturn: string,
+  returnTime: string,
+  lockedPickupDate: string,
+  lockedPickupTime: string,
+  lockedReturnDate: string,
+  lockedReturnTime: string,
 ) {
-  return pickupDate < lockedReturn && returnDate > lockedPickup;
+  const pickup = createRentalDateTime(pickupDate, pickupTime);
+  const returnAt = createRentalDateTime(returnDate, returnTime);
+  const lockedPickup = createRentalDateTime(lockedPickupDate, lockedPickupTime);
+  const lockedReturn = createRentalDateTime(lockedReturnDate, lockedReturnTime);
+
+  if (!pickup || !returnAt || !lockedPickup || !lockedReturn) {
+    return false;
+  }
+
+  return pickup < lockedReturn && returnAt > lockedPickup;
 }
 
 export function AvailabilityForm({ car }: { car: Car }) {
   const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
   const [returnDate, setReturnDate] = useState("");
+  const [returnTime, setReturnTime] = useState("");
   const [mode, setMode] = useState<RentalMode>("normal");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("stripe");
+
+  const bookingDraftKey = `7go-booking-draft-${car.id}`;
+
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem(bookingDraftKey);
+
+      if (!savedDraft) {
+        return;
+      }
+
+      const draft = JSON.parse(savedDraft) as {
+        pickupDate?: string;
+        pickupTime?: string;
+        returnDate?: string;
+        returnTime?: string;
+        mode?: RentalMode;
+        name?: string;
+        phone?: string;
+        email?: string;
+        paymentChoice?: PaymentChoice;
+      };
+
+      setPickupDate(draft.pickupDate ?? "");
+      setPickupTime(draft.pickupTime ?? "");
+      setReturnDate(draft.returnDate ?? "");
+      setReturnTime(draft.returnTime ?? "");
+      setMode(draft.mode ?? "normal");
+      setName(draft.name ?? "");
+      setPhone(draft.phone ?? "");
+      setEmail(draft.email ?? "");
+      setPaymentChoice(draft.paymentChoice ?? "stripe");
+    } catch (error) {
+      console.error("ERRO AO RESTAURAR RESERVA:", error);
+      sessionStorage.removeItem(bookingDraftKey);
+    }
+  }, [bookingDraftKey]);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        return;
+      }
+
+      try {
+        const savedDraft = sessionStorage.getItem(bookingDraftKey);
+
+        const draft = savedDraft
+          ? (JSON.parse(savedDraft) as {
+              name?: string;
+              phone?: string;
+              email?: string;
+            })
+          : null;
+
+        const profileSnapshot = await getDoc(doc(db, "users", currentUser.uid));
+
+        const profile = profileSnapshot.exists()
+          ? (profileSnapshot.data() as {
+              name?: string;
+              phone?: string;
+              email?: string;
+            })
+          : {};
+
+        if (!draft?.name) {
+          setName(profile.name || currentUser.displayName || "");
+        }
+
+        if (!draft?.phone) {
+          setPhone(profile.phone || "");
+        }
+
+        if (!draft?.email) {
+          setEmail(profile.email || currentUser.email || "");
+        }
+      } catch (error) {
+        console.error("ERRO AO CARREGAR PERFIL NA RESERVA:", error);
+      }
+    });
+  }, [bookingDraftKey]);
+
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [availabilityState, setAvailabilityState] = useState<
     "idle" | "available" | "unavailable"
   >("idle");
 
-  const totalDays = useMemo(() => {
-    if (!pickupDate || !returnDate) return 0;
+  const rentalPeriod = useMemo(() => {
+    const pickupAt = createRentalDateTime(pickupDate, pickupTime);
+    const returnAt = createRentalDateTime(returnDate, returnTime);
 
-    const start = new Date(`${pickupDate}T00:00:00`);
-    const end = new Date(`${returnDate}T00:00:00`);
-    const diff = end.getTime() - start.getTime();
+    if (!pickupAt || !returnAt) {
+      return {
+        pickupAt: null,
+        returnAt: null,
+        rentalHours: 0,
+        totalDays: 0,
+      };
+    }
 
-    if (diff <= 0) return 0;
+    const difference = returnAt.getTime() - pickupAt.getTime();
 
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  }, [pickupDate, returnDate]);
+    if (difference <= 0) {
+      return {
+        pickupAt,
+        returnAt,
+        rentalHours: 0,
+        totalDays: 0,
+      };
+    }
+
+    return {
+      pickupAt,
+      returnAt,
+      rentalHours: Math.ceil(difference / MILLISECONDS_PER_HOUR),
+      totalDays: Math.ceil(difference / MILLISECONDS_PER_DAY),
+    };
+  }, [pickupDate, pickupTime, returnDate, returnTime]);
+
+  const { pickupAt, returnAt, rentalHours, totalDays } = rentalPeriod;
 
   const premiumPricePerDay = car.premiumPricePerDay ?? 0;
   const normalExcess = car.normalExcess ?? 0;
@@ -68,6 +219,9 @@ export function AvailabilityForm({ car }: { car: Car }) {
   const dailyRate =
     car.pricePerDay + (mode === "premium" ? premiumPricePerDay : 0);
   const estimatedTotal = totalDays * dailyRate;
+  const cashPayLaterFee = 5;
+  const bookingCurrency = "€";
+  const bookingCurrencyCode = "EUR";
   const appliedExcess = mode === "premium" ? 0 : normalExcess;
   const modeLabel = mode === "premium" ? "7Go Premium" : "Aluguer normal";
 
@@ -78,13 +232,21 @@ export function AvailabilityForm({ car }: { car: Car }) {
 
   const nameValid = cleanName.length >= 3;
   const phoneValid = phoneDigits.length >= 7;
-  const emailValid =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const pickupValid = Boolean(pickupDate && pickupDate >= today);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const pickupValid = Boolean(
+    pickupDate &&
+    pickupTime &&
+    pickupAt &&
+    pickupDate >= today &&
+    pickupAt.getTime() > Date.now(),
+  );
+
   const returnValid = Boolean(
     returnDate &&
-    pickupDate &&
-    returnDate > pickupDate,
+    returnTime &&
+    pickupAt &&
+    returnAt &&
+    returnAt.getTime() > pickupAt.getTime(),
   );
 
   const basicFieldsValid = Boolean(
@@ -96,26 +258,36 @@ export function AvailabilityForm({ car }: { car: Car }) {
     totalDays > 0,
   );
 
-  const canSubmit =
-    basicFieldsValid && availabilityState === "available";
+  const canSubmit = basicFieldsValid && availabilityState === "available";
 
   const message = `Olá 7Go STP, quero verificar disponibilidade.
 
 Carro: ${car.brand} ${car.model}
 Ano: ${car.year}
-Levantamento: ${pickupDate || "por confirmar"}
-Devolução: ${returnDate || "por confirmar"}
-Dias: ${totalDays || "por confirmar"}
+Levantamento: ${
+    pickupDate && pickupTime
+      ? `${pickupDate} às ${pickupTime}`
+      : "por confirmar"
+  }
+Devolução: ${
+    returnDate && returnTime
+      ? `${returnDate} às ${returnTime}`
+      : "por confirmar"
+  }
+Duração estimada: ${rentalHours ? `${rentalHours} hora(s)` : "por confirmar"}
+Dias cobrados: ${totalDays || "por confirmar"}
 Modalidade: ${modeLabel}
-Preço base por dia: ${car.currency}${car.pricePerDay}
+Preço base por dia: ${bookingCurrency}${car.pricePerDay}
 Extra Premium por dia: ${
-  mode === "premium" ? `${car.currency}${premiumPricePerDay}` : "Não aplicado"
-}
-Preço final por dia: ${car.currency}${dailyRate}
-Franquia: ${car.currency}${appliedExcess}
-Caução reembolsável: ${car.currency}${refundableDeposit}
+    mode === "premium"
+      ? `${bookingCurrency}${premiumPricePerDay}`
+      : "Não aplicado"
+  }
+Preço final por dia: ${bookingCurrency}${dailyRate}
+Franquia: ${bookingCurrency}${appliedExcess}
+Caução reembolsável: ${bookingCurrency}${refundableDeposit}
 Total estimado: ${
-    totalDays ? `${car.currency}${estimatedTotal}` : "por confirmar"
+    totalDays ? `${bookingCurrency}${estimatedTotal}` : "por confirmar"
   }
 
 Nome: ${name || "por confirmar"}
@@ -123,40 +295,47 @@ Contacto: ${phone || "por confirmar"}
 Email: ${email || "por confirmar"}`;
 
   async function checkAvailability() {
-    if (!pickupDate || !returnDate || totalDays <= 0) {
+    if (
+      !pickupDate ||
+      !pickupTime ||
+      !returnDate ||
+      !returnTime ||
+      !pickupAt ||
+      !returnAt ||
+      totalDays <= 0
+    ) {
       setAvailabilityState("unavailable");
       setAvailabilityMessage(
-        "Escolhe uma data de levantamento e uma data de devolução válidas.",
+        "Escolhe datas e horas de levantamento e devolução válidas.",
       );
       return false;
     }
 
     const snapshot = await getDocs(
-      query(
-        collection(db, "availabilityLocks"),
-        where("carId", "==", car.id),
-      ),
+      query(collection(db, "availabilityLocks"), where("carId", "==", car.id)),
     );
 
-    const locks = snapshot.docs.map(
-      (item) => item.data() as AvailabilityLock,
-    );
+    const locks = snapshot.docs.map((item) => item.data() as AvailabilityLock);
 
     const blocked = locks.some((lock) => {
       if (!lock.pickupDate || !lock.returnDate) return false;
 
       return datesOverlap(
         pickupDate,
+        pickupTime,
         returnDate,
+        returnTime,
         lock.pickupDate,
+        lock.pickupTime || "00:00",
         lock.returnDate,
+        lock.returnTime || "23:59",
       );
     });
 
     if (blocked) {
       setAvailabilityState("unavailable");
       setAvailabilityMessage(
-        "Este carro já está reservado nessas datas. Escolhe outras datas.",
+        "Este carro já está reservado nesse período. Escolhe outras datas ou horas.",
       );
       return false;
     }
@@ -175,8 +354,20 @@ Email: ${email || "por confirmar"}`;
     setAvailabilityMessage("");
   }
 
+  async function handlePickupTime(value: string) {
+    setPickupTime(value);
+    setAvailabilityState("idle");
+    setAvailabilityMessage("");
+  }
+
   async function handleReturnDate(value: string) {
     setReturnDate(value);
+    setAvailabilityState("idle");
+    setAvailabilityMessage("");
+  }
+
+  async function handleReturnTime(value: string) {
+    setReturnTime(value);
     setAvailabilityState("idle");
     setAvailabilityMessage("");
   }
@@ -197,13 +388,50 @@ Email: ${email || "por confirmar"}`;
     try {
       const available = await checkAvailability();
 
-      if (!available) return;
+      if (!available) {
+        return;
+      }
 
       const reference = createReference();
 
-      await addDoc(collection(db, "bookings"), {
+      const customerResponse = await fetch("/api/customers/upsert", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+        }),
+      });
+
+      const customerResult = (await customerResponse.json()) as {
+        customerId?: string;
+        error?: string;
+      };
+
+      if (!customerResponse.ok || !customerResult.customerId) {
+        throw new Error(
+          customerResult.error || "Não foi possível criar o perfil do cliente.",
+        );
+      }
+
+      const customerId = customerResult.customerId;
+      const isStripePayment = paymentChoice === "stripe";
+
+      const paymentMethod = isStripePayment ? "stripe" : "cash";
+      const paymentChoiceValue = isStripePayment ? "pay_now" : "pay_later";
+
+      const payLaterFee = isStripePayment ? 0 : cashPayLaterFee;
+      const finalAmount = estimatedTotal + payLaterFee;
+
+      const reservationStatus = isStripePayment ? "pending_payment" : "pending";
+
+      const bookingData = {
         reference,
-        status: "pending",
+        status: reservationStatus,
+
         carId: car.id,
         carBrand: car.brand,
         carModel: car.model,
@@ -212,46 +440,70 @@ Email: ${email || "por confirmar"}`;
         carVehicleColor: car.vehicleColor ?? "",
         carVin: car.vin ?? "",
         carInsurer: car.insurer ?? "",
-        carInsurancePolicyNumber:
-          car.insurancePolicyNumber ?? "",
+        carInsurancePolicyNumber: car.insurancePolicyNumber ?? "",
         carInsuranceExpiry: car.insuranceExpiry ?? "",
+
         pickupDate,
+        pickupTime,
+        pickupAt,
         returnDate,
+        returnTime,
+        returnAt,
+        rentalHours,
         totalDays,
+
         rentalMode: mode,
         rentalModeLabel: modeLabel,
+
         pricePerDay: car.pricePerDay,
         premiumPricePerDay,
         dailyRate,
+
         normalExcess,
         appliedExcess,
         refundableDeposit,
-        estimatedTotal,
-        currency: car.currency,
+
+        baseAmount: estimatedTotal,
+        payLaterFee,
+        finalAmount,
+        estimatedTotal: finalAmount,
+
+        currency: bookingCurrency,
+        currencyCode: bookingCurrencyCode,
+
+        customerId,
+        authUid: auth.currentUser?.uid ?? "",
         customerName: name,
         customerPhone: phone,
         customerEmail: email,
+
+        paymentChoice: paymentChoiceValue,
+        paymentMethod,
+        paymentStatus: "pending",
+
         message,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      const bookingDocument = await addDoc(
+        collection(db, "bookings"),
+        bookingData,
+      );
 
       await setDoc(doc(db, "bookingStatus", reference), {
         reference,
-        status: "pending",
+        status: reservationStatus,
+
         carId: car.id,
         carBrand: car.brand,
         carModel: car.model,
-        carYear: car.year,
-        carRegistrationPlate: car.registrationPlate ?? "",
-        carVehicleColor: car.vehicleColor ?? "",
-        carVin: car.vin ?? "",
-        carInsurer: car.insurer ?? "",
-        carInsurancePolicyNumber:
-          car.insurancePolicyNumber ?? "",
-        carInsuranceExpiry: car.insuranceExpiry ?? "",
+
         pickupDate,
+        pickupTime,
         returnDate,
+        returnTime,
         totalDays,
+
         rentalModeLabel: modeLabel,
         pricePerDay: car.pricePerDay,
         premiumPricePerDay,
@@ -259,22 +511,62 @@ Email: ${email || "por confirmar"}`;
         normalExcess,
         appliedExcess,
         refundableDeposit,
-        estimatedTotal,
-        currency: car.currency,
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: email,
-        createdAt: serverTimestamp(),
+        estimatedTotal: finalAmount,
+
+        currency: bookingCurrency,
+        paymentStatus: "pending",
+        depositStatus: "pending",
       });
 
-      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-        `${message}
+      if (isStripePayment) {
+        const checkoutResponse = await fetch("/api/payments/create-checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bookingId: bookingDocument.id,
+          }),
+        });
 
-Referência da reserva: ${reference}`,
+        const checkoutResult = (await checkoutResponse.json()) as {
+          url?: string;
+          error?: string;
+        };
+
+        if (!checkoutResponse.ok || !checkoutResult.url) {
+          throw new Error(
+            checkoutResult.error ||
+              "Não foi possível abrir o pagamento Stripe.",
+          );
+        }
+
+        sessionStorage.removeItem(bookingDraftKey);
+
+        window.location.href = checkoutResult.url;
+        return;
+      }
+
+      const cashMessage = `${message}
+
+Método de pagamento: Dinheiro na recolha
+Valor base: ${bookingCurrency}${estimatedTotal}
+Taxa de pagamento posterior: ${bookingCurrency}${cashPayLaterFee}
+Total final: ${bookingCurrency}${finalAmount}
+
+Referência da reserva: ${reference}`;
+
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+        cashMessage,
       )}`;
 
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      window.location.href = `/reserva/sucesso?ref=${reference}`;
+
+      sessionStorage.removeItem(bookingDraftKey);
+
+      window.location.href = `/reserva/sucesso?ref=${encodeURIComponent(
+        reference,
+      )}&payment=cash`;
     } catch (error) {
       console.error("ERRO AO CRIAR RESERVA:", error);
 
@@ -287,6 +579,42 @@ Referência da reserva: ${reference}`,
     }
   }
 
+  function openPaymentModal() {
+    if (!canSubmit || isSubmitting) {
+      return;
+    }
+
+    if (!auth.currentUser) {
+      const returnTo = window.location.pathname + window.location.search;
+
+      sessionStorage.setItem(
+        bookingDraftKey,
+        JSON.stringify({
+          pickupDate,
+          pickupTime,
+          returnDate,
+          returnTime,
+          mode,
+          name,
+          phone,
+          email,
+          paymentChoice,
+        }),
+      );
+
+      window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+
+      return;
+    }
+
+    setPaymentModalOpen(true);
+  }
+
+  function continueWithPaymentChoice() {
+    setPaymentModalOpen(false);
+    void submitBooking();
+  }
+
   async function copyMessage() {
     await navigator.clipboard.writeText(message);
     alert("Mensagem copiada.");
@@ -296,20 +624,14 @@ Referência da reserva: ${reference}`,
     <div className="availability-box">
       <div className="availability-ui-header">
         <div>
-          <span className="availability-ui-eyebrow">
-            Reserva 7Go
-          </span>
+          <span className="availability-ui-eyebrow">Reserva 7Go</span>
 
           <h2>Pedido de disponibilidade</h2>
 
-          <p>
-            Preenche os dados e verifica as datas para este carro.
-          </p>
+          <p>Preenche os dados e verifica as datas para este carro.</p>
         </div>
 
-        <span className="availability-ui-status">
-          Pedido online
-        </span>
+        <span className="availability-ui-status">Pedido online</span>
       </div>
 
       <div className="availability-ui-section">
@@ -323,87 +645,115 @@ Referência da reserva: ${reference}`,
         </div>
 
         <div className="availability-fields">
-        <label>
-          Nome
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="O teu nome"
-            required
-            minLength={3}
-            aria-required="true"
-          />
-          {!nameValid && name.length > 0 && (
-            <small className="field-error">
-              Introduz o nome completo.
-            </small>
-          )}
-        </label>
+          <label>
+            Nome
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="O teu nome"
+              required
+              minLength={3}
+              aria-required="true"
+            />
+            {!nameValid && name.length > 0 && (
+              <small className="field-error">Introduz o nome completo.</small>
+            )}
+          </label>
 
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nome@email.com"
+              required
+              aria-required="true"
+            />
+            {!emailValid && email.length > 0 && (
+              <small className="field-error">Introduz um email válido.</small>
+            )}
+          </label>
 
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="nome@email.com"
-            required
-            aria-required="true"
-          />
-          {!emailValid && email.length > 0 && (
-            <small className="field-error">
-              Introduz um email válido.
-            </small>
-          )}
-        </label>
+          <label>
+            Contacto
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Ex.: +239 990 00 00"
+              required
+              inputMode="tel"
+              aria-required="true"
+            />
+            {!phoneValid && phone.length > 0 && (
+              <small className="field-error">
+                Introduz um contacto válido.
+              </small>
+            )}
+          </label>
 
-        <label>
-          Contacto
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="Ex.: +239 990 00 00"
-            required
-            inputMode="tel"
-            aria-required="true"
-          />
-          {!phoneValid && phone.length > 0 && (
-            <small className="field-error">
-              Introduz um contacto válido.
-            </small>
-          )}
-        </label>
+          <label>
+            Data de levantamento
+            <input
+              type="date"
+              min={today}
+              value={pickupDate}
+              onChange={(e) => handlePickupDate(e.target.value)}
+              required
+              aria-required="true"
+            />
+          </label>
 
-        <label>
-          Data de levantamento
-          <input
-            type="date"
-            min={today}
-            value={pickupDate}
-            onChange={(e) => handlePickupDate(e.target.value)}
-            required
-            aria-required="true"
-          />
-        </label>
+          <label>
+            Hora de levantamento
+            <select
+              value={pickupTime}
+              onChange={(e) => handlePickupTime(e.target.value)}
+              required
+              aria-required="true"
+            >
+              <option value="">Escolher hora</option>
+              {operatingHours.map((time) => (
+                <option key={`pickup-${time}`} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Data de devolução
-          <input
-            type="date"
-            min={pickupDate || today}
-            value={returnDate}
-            onChange={(e) => handleReturnDate(e.target.value)}
-            required
-            aria-required="true"
-          />
-          {returnDate && !returnValid && (
-            <small className="field-error">
-              A devolução deve ser depois do levantamento.
-            </small>
-          )}
-        </label>
+          <label>
+            Data de devolução
+            <input
+              type="date"
+              min={pickupDate || today}
+              value={returnDate}
+              onChange={(e) => handleReturnDate(e.target.value)}
+              required
+              aria-required="true"
+            />
+          </label>
 
+          <label>
+            Hora de devolução
+            <select
+              value={returnTime}
+              onChange={(e) => handleReturnTime(e.target.value)}
+              required
+              aria-required="true"
+            >
+              <option value="">Escolher hora</option>
+              {operatingHours.map((time) => (
+                <option key={`return-${time}`} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+            {returnDate && returnTime && !returnValid && (
+              <small className="field-error">
+                A devolução deve acontecer depois do levantamento.
+              </small>
+            )}
+          </label>
         </div>
       </div>
 
@@ -431,9 +781,7 @@ Referência da reserva: ${reference}`,
             </select>
           </label>
 
-          <div
-            className={`rental-protection rental-protection-${mode}`}
-          >
+          <div className={`rental-protection rental-protection-${mode}`}>
             <div className="rental-protection-top">
               <span>
                 {mode === "premium" ? "7Go Premium" : "Aluguer normal"}
@@ -442,14 +790,14 @@ Referência da reserva: ${reference}`,
               <strong>
                 Franquia{" "}
                 {mode === "premium"
-                  ? `${car.currency}0`
-                  : `${car.currency}${normalExcess}`}
+                  ? `${bookingCurrency}0`
+                  : `${bookingCurrency}${normalExcess}`}
               </strong>
             </div>
 
             <p>
               {mode === "premium"
-                ? `Acrescenta ${car.currency}${premiumPricePerDay} por dia. Em caso de dano coberto pelas condições 7Go Premium, não pagas franquia.`
+                ? `Acrescenta ${bookingCurrency}${premiumPricePerDay} por dia. Em caso de dano coberto pelas condições 7Go Premium, não pagas franquia.`
                 : "Em caso de dano coberto, a responsabilidade fica limitada ao valor da franquia indicada."}
             </p>
           </div>
@@ -467,96 +815,115 @@ Referência da reserva: ${reference}`,
         </div>
 
         <div className="booking-summary">
-        <div>
-          <span>Dias</span>
-          <strong>{totalDays || "-"}</strong>
-        </div>
+          <div>
+            <span>Dias</span>
+            <strong>{totalDays || "-"}</strong>
+          </div>
 
-        <div>
-          <span>Preço final/dia</span>
-          <strong>
-            {car.currency}
-            {dailyRate}
-          </strong>
-        </div>
+          <div>
+            <span>Preço final/dia</span>
+            <strong>
+              {bookingCurrency}
+              {dailyRate}
+            </strong>
+          </div>
 
-        <div>
-          <span>Total estimado</span>
-          <strong>
-            {totalDays ? `${car.currency}${estimatedTotal}` : "-"}
-          </strong>
-        </div>
+          <div>
+            <span>Total estimado</span>
+            <strong>
+              {totalDays ? `${bookingCurrency}${estimatedTotal}` : "-"}
+            </strong>
+          </div>
 
-        <div>
-          <span>Franquia</span>
-          <strong>
-            {mode === "premium"
-              ? `${car.currency}0`
-              : `${car.currency}${normalExcess}`}
-          </strong>
-        </div>
+          <div>
+            <span>Franquia</span>
+            <strong>
+              {mode === "premium"
+                ? `${bookingCurrency}0`
+                : `${bookingCurrency}${normalExcess}`}
+            </strong>
+          </div>
 
-        <div>
-          <span>Caução reembolsável</span>
-          <strong>
-            {car.currency}
-            {refundableDeposit}
-          </strong>
-        </div>
+          <div>
+            <span>Caução reembolsável</span>
+            <strong>
+              {bookingCurrency}
+              {refundableDeposit}
+            </strong>
+          </div>
         </div>
       </div>
 
       <div className="availability-ui-action-zone">
-      {pickupDate && returnDate && totalDays > 0 && (
-        <button
-          type="button"
-          className="check-availability-button"
-          onClick={checkAvailability}
-          disabled={isSubmitting}
-        >
-          Verificar estas datas
-        </button>
-      )}
+        {pickupDate &&
+          pickupTime &&
+          returnDate &&
+          returnTime &&
+          totalDays > 0 && (
+            <button
+              type="button"
+              className="check-availability-button"
+              onClick={checkAvailability}
+              disabled={isSubmitting}
+            >
+              Verificar este período
+            </button>
+          )}
 
-      {availabilityMessage && (
-        <div
-          className={`availability-result availability-result-${availabilityState}`}
-        >
-          {availabilityMessage}
+        {availabilityMessage && (
+          <div
+            className={`availability-result availability-result-${availabilityState}`}
+          >
+            {availabilityMessage}
+          </div>
+        )}
+
+        <div className="availability-actions">
+          <button
+            type="button"
+            disabled={!canSubmit || isSubmitting}
+            onClick={openPaymentModal}
+          >
+            {isSubmitting
+              ? "A verificar e enviar..."
+              : "Continuar para pagamento"}
+          </button>
+
+          <button type="button" onClick={copyMessage}>
+            Copiar mensagem
+          </button>
         </div>
-      )}
 
-      <div className="availability-actions">
-        <button
-          type="button"
-          disabled={!canSubmit || isSubmitting}
-          onClick={submitBooking}
-        >
-          {isSubmitting ? "A verificar e enviar..." : "Confirmar disponibilidade"}
-        </button>
+        {!basicFieldsValid && (
+          <p className="form-warning">
+            * Todos os campos são obrigatórios. Preenche os dados, datas e horas
+            válidas.
+          </p>
+        )}
 
-        <button type="button" onClick={copyMessage}>
-          Copiar mensagem
-        </button>
+        {basicFieldsValid && availabilityState === "idle" && (
+          <p className="form-warning">
+            Verifica a disponibilidade do período antes de enviar o pedido.
+          </p>
+        )}
+
+        <p className="availability-ui-legal-note">
+          Este pedido ainda não confirma a reserva. A equipa 7Go irá validar
+          carro, datas, caução e entrega.
+        </p>
       </div>
 
-      {!basicFieldsValid && (
-        <p className="form-warning">
-          * Todos os campos são obrigatórios. Preenche nome, contacto e datas válidas.
-        </p>
-      )}
-
-      {basicFieldsValid && availabilityState === "idle" && (
-        <p className="form-warning">
-          Verifica a disponibilidade das datas antes de enviar o pedido.
-        </p>
-      )}
-
-      <p className="availability-ui-legal-note">
-        Este pedido ainda não confirma a reserva. A equipa 7Go irá validar
-        carro, datas, caução e entrega.
-      </p>
-      </div>
+      <PaymentMethodModal
+        open={paymentModalOpen}
+        currency={bookingCurrency}
+        baseAmount={estimatedTotal}
+        cashFee={cashPayLaterFee}
+        selected={paymentChoice}
+        onSelect={setPaymentChoice}
+        onClose={() => setPaymentModalOpen(false)}
+        onContinue={continueWithPaymentChoice}
+        loading={isSubmitting}
+      />
     </div>
   );
 }

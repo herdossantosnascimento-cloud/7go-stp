@@ -1,0 +1,391 @@
+.inspections {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.panel {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.98),
+    rgba(17, 24, 39, 0.94)
+  );
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.panel:hover {
+  border-color: rgba(250, 204, 21, 0.35);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(250, 204, 21, 0.04);
+}
+
+.panel[open] {
+  border-color: rgba(250, 204, 21, 0.42);
+}
+
+.summary {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 48px minmax(0, 1fr) auto 30px;
+  align-items: center;
+  gap: 14px;
+  min-height: 84px;
+  padding: 16px 20px !important;
+  cursor: pointer;
+  list-style: none;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(250, 204, 21, 0.12),
+      transparent 38%
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  content: "🚘";
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(250, 204, 21, 0.24);
+  border-radius: 15px;
+  background: rgba(250, 204, 21, 0.1);
+  font-size: 22px;
+}
+
+.summary::after {
+  content: "⌄" !important;
+  position: static !important;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #facc15;
+  font-size: 18px;
+  transform: rotate(0deg);
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.panel[open] .summary::after {
+  transform: rotate(180deg);
+  background: rgba(250, 204, 21, 0.13);
+}
+
+.summary > span {
+  min-width: 0;
+  color: #f8fafc !important;
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.summary > small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #cbd5e1 !important;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.body {
+  display: grid !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  padding: 20px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0.16),
+    rgba(2, 6, 23, 0.36)
+  );
+}
+
+.body > label {
+  grid-column: span 6;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.body > label:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+.body > div:not(.financialCard):not(.warningCard) {
+  grid-column: 1 / -1;
+}
+
+.body input[type="text"],
+.body input[type="number"],
+.body select,
+.body textarea {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 12px !important;
+  background: rgba(2, 6, 23, 0.58) !important;
+  color: #f8fafc !important;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.body input:focus,
+.body select:focus,
+.body textarea:focus {
+  border-color: rgba(250, 204, 21, 0.68) !important;
+  outline: none;
+  background: rgba(2, 6, 23, 0.82) !important;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.1) !important;
+}
+
+.financialCard,
+.warningCard {
+  grid-column: 1 / -1;
+  padding: 18px !important;
+  border-radius: 18px !important;
+}
+
+.financialCard {
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(59, 130, 246, 0.14),
+      transparent 42%
+    ),
+    rgba(15, 23, 42, 0.56) !important;
+}
+
+.warningCard {
+  border: 1px solid rgba(245, 158, 11, 0.32) !important;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(245, 158, 11, 0.16),
+      transparent 42%
+    ),
+    rgba(69, 26, 3, 0.24) !important;
+}
+
+.section {
+  grid-column: 1 / -1 !important;
+  padding: 20px !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  border-radius: 18px !important;
+  background: rgba(15, 23, 42, 0.46) !important;
+}
+
+.saveButton {
+  grid-column: 1 / -1 !important;
+  min-height: 54px;
+  margin-top: 2px;
+  border: 1px solid rgba(250, 204, 21, 0.48) !important;
+  border-radius: 15px !important;
+  background: linear-gradient(135deg, #fde047, #eab308) !important;
+  color: #111827 !important;
+  font-size: 14px;
+  font-weight: 900 !important;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 14px 30px rgba(234, 179, 8, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+  box-shadow:
+    0 18px 38px rgba(234, 179, 8, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+:global(html:not([data-theme="night"])) .panel {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.99),
+    rgba(248, 250, 252, 0.98)
+  );
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.09);
+}
+
+:global(html:not([data-theme="night"])) .summary {
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(234, 179, 8, 0.13),
+      transparent 38%
+    ),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.025), transparent);
+}
+
+:global(html:not([data-theme="night"])) .summary > span {
+  color: #0f172a !important;
+}
+
+:global(html:not([data-theme="night"])) .summary > small {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+  color: #475569 !important;
+}
+
+:global(html:not([data-theme="night"])) .body {
+  background: #f8fafc;
+}
+
+:global(html:not([data-theme="night"])) .body > label,
+:global(html:not([data-theme="night"])) .section {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  background: #ffffff !important;
+}
+
+:global(html:not([data-theme="night"])) .body input[type="text"],
+:global(html:not([data-theme="night"])) .body input[type="number"],
+:global(html:not([data-theme="night"])) .body select,
+:global(html:not([data-theme="night"])) .body textarea {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+:global(html:not([data-theme="night"])) .financialCard {
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(59, 130, 246, 0.1),
+      transparent 42%
+    ),
+    #ffffff !important;
+}
+
+:global(html:not([data-theme="night"])) .warningCard {
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(245, 158, 11, 0.12),
+      transparent 42%
+    ),
+    #fffbeb !important;
+}
+
+@media (max-width: 900px) {
+  .body > label {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .inspections {
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .panel {
+    border-radius: 17px;
+  }
+
+  .summary {
+    grid-template-columns: 42px minmax(0, 1fr) 28px;
+    gap: 10px;
+    min-height: 72px;
+    padding: 13px !important;
+  }
+
+  .summary::before {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 19px;
+  }
+
+  .summary > small {
+    grid-column: 2;
+    justify-self: start;
+    min-height: 25px;
+    margin-top: -5px;
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+  .summary::after {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .body {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px !important;
+    padding: 13px !important;
+  }
+
+  .body > label,
+  .financialCard,
+  .warningCard,
+  .section {
+    width: 100%;
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+
+  .section {
+    overflow: hidden;
+  }
+
+  .saveButton {
+    position: sticky;
+    bottom: 10px;
+    z-index: 5;
+    min-height: 52px;
+    border-radius: 14px !important;
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, 0.28),
+      0 10px 24px rgba(234, 179, 8, 0.22);
+  }
+}
+
+.body > section {
+  grid-column: 1 / -1;
+}

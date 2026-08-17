@@ -1,0 +1,408 @@
+.bookingCard {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.75fr) !important;
+  gap: 22px !important;
+  overflow: hidden;
+  padding: 22px !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(250, 204, 21, 0.09),
+      transparent 32%
+    ),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96)) !important;
+  box-shadow:
+    0 26px 65px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.bookingCard :global(.admin-reservation-finance) {
+  min-width: 0;
+  width: 100%;
+}
+
+.bookingCard :global(.admin-reservation-finance-card) {
+  min-width: 0;
+  overflow: visible;
+}
+
+.bookingCard :global(.admin-reservation-finance-card span) {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.35;
+}
+
+.bookingCard :global(.admin-reservation-finance-card strong) {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bookingCard::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #facc15, #eab308, rgba(234, 179, 8, 0.15));
+  content: "";
+}
+
+.bookingCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(250, 204, 21, 0.34) !important;
+  box-shadow:
+    0 32px 78px rgba(0, 0, 0, 0.27),
+    0 0 0 1px rgba(250, 204, 21, 0.04);
+}
+
+.bookingMain {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.bookingMiddle {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px !important;
+  padding: 18px !important;
+  border: 1px solid rgba(148, 163, 184, 0.17) !important;
+  border-radius: 18px !important;
+  background: rgba(15, 23, 42, 0.44) !important;
+}
+
+.bookingSide {
+  position: relative;
+  display: flex !important;
+  min-width: 0;
+  height: fit-content;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 14px !important;
+  padding: 20px !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  border-radius: 20px !important;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(59, 130, 246, 0.12),
+      transparent 42%
+    ),
+    rgba(2, 6, 23, 0.46) !important;
+}
+
+.bookingSide > strong:first-child {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  border-radius: 17px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 204, 21, 0.15),
+    rgba(234, 179, 8, 0.06)
+  );
+  color: #fde047 !important;
+  font-size: clamp(24px, 3vw, 34px) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+
+.bookingSide > strong:first-child::before {
+  margin-right: 8px;
+  color: #94a3b8;
+  content: "Total";
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bookingSide > select {
+  width: 100% !important;
+  min-height: 48px;
+  padding: 0 42px 0 14px !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 13px !important;
+  background-color: rgba(15, 23, 42, 0.78) !important;
+  color: #f8fafc !important;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bookingSide > select:focus {
+  border-color: rgba(250, 204, 21, 0.65) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.1);
+}
+
+.bookingSide > small {
+  display: block;
+  color: #facc15 !important;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bookingCard :global(.admin-booking-title) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookingCard :global(.admin-booking-title strong) {
+  color: #f8fafc;
+  font-size: clamp(19px, 2.5vw, 27px);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.bookingCard :global(.admin-booking-labels) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.bookingCard :global(.admin-booking-labels small) {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.62);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bookingCard :global(.admin-booking-details) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.bookingCard :global(.admin-booking-details p) {
+  min-width: 0;
+  margin: 0 !important;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 13px;
+  background: rgba(2, 6, 23, 0.34);
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.bookingCard :global(.admin-booking-details p strong) {
+  color: #f8fafc;
+}
+
+.bookingCard :global(.admin-booking-actions) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 9px !important;
+}
+
+.bookingCard :global(.admin-booking-actions a),
+.bookingCard :global(.admin-booking-actions button) {
+  display: inline-flex;
+  min-height: 42px;
+  flex: 1 1 150px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  font-size: 12px;
+  font-weight: 850 !important;
+  text-align: center;
+  text-decoration: none;
+}
+
+.bookingCard :global(.admin-operational-summary) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.bookingCard :global(.admin-operational-summary span) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 13px;
+  background: rgba(2, 6, 23, 0.34);
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.bookingCard :global(.admin-operational-summary strong) {
+  color: #f8fafc;
+  font-size: 13px;
+}
+
+.bookingCard :global(.admin-management-panel) {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.17);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.bookingCard :global(.admin-management-panel > summary) {
+  padding: 14px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.bookingCard :global(.admin-operation-controls) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px !important;
+  padding: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.bookingCard :global(.admin-internal-notes),
+.bookingCard :global(.admin-operation-controls > button) {
+  grid-column: 1 / -1;
+}
+
+:global(html:not([data-theme="night"])) .bookingCard {
+  border-color: rgba(15, 23, 42, 0.11) !important;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(234, 179, 8, 0.1),
+      transparent 32%
+    ),
+    linear-gradient(145deg, #ffffff, #f8fafc) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.09);
+}
+
+:global(html:not([data-theme="night"])) .bookingMiddle,
+:global(html:not([data-theme="night"])) .bookingSide {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  background-color: #ffffff !important;
+}
+
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-booking-title strong) {
+  color: #0f172a;
+}
+
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-booking-labels small) {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: #f8fafc;
+  color: #475569;
+}
+
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-booking-details p),
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-operational-summary span),
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-management-panel) {
+  border-color: rgba(15, 23, 42, 0.09);
+  background: #f8fafc;
+  color: #475569;
+}
+
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-booking-details p strong),
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-operational-summary strong),
+:global(html:not([data-theme="night"]))
+  .bookingCard
+  :global(.admin-management-panel > summary) {
+  color: #0f172a;
+}
+
+:global(html:not([data-theme="night"])) .bookingSide > select {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+@media (max-width: 1080px) {
+  .bookingCard {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .bookingSide {
+    width: 100%;
+  }
+
+  .bookingSide > strong:first-child {
+    min-height: 60px;
+  }
+}
+
+@media (max-width: 720px) {
+  .bookingCard {
+    gap: 14px !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .bookingMiddle,
+  .bookingSide {
+    padding: 14px !important;
+    border-radius: 15px !important;
+  }
+
+  .bookingCard :global(.admin-booking-details),
+  .bookingCard :global(.admin-operation-controls),
+  .bookingCard :global(.admin-operational-summary) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .bookingCard :global(.admin-booking-actions) {
+    flex-direction: column;
+  }
+
+  .bookingCard :global(.admin-booking-actions a),
+  .bookingCard :global(.admin-booking-actions button) {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .bookingSide > strong:first-child {
+    font-size: 26px !important;
+  }
+}

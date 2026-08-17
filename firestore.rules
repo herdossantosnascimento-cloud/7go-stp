@@ -4,7 +4,55 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == "her.dos.santos.nascimento@gmail.com";
+        && (
+          request.auth.token.email == "her.dos.santos.nascimento@gmail.com" ||
+          request.auth.token.role == "admin"
+        );
+    }
+
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.role == "staff";
+    }
+
+    function isAdminOrStaff() {
+      return isAdmin() || isStaff();
+    }
+
+    match /users/{userId} {
+      // O utilizador pode criar apenas o próprio perfil
+      // e nunca pode criar-se como admin/staff.
+      allow create: if
+        request.auth != null &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == userId &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.role == "customer" &&
+        request.resource.data.active == true;
+
+      // Admin vê qualquer perfil.
+      // Cliente vê apenas o próprio perfil.
+      allow read: if
+        isAdmin() ||
+        (
+          request.auth != null &&
+          request.auth.uid == userId
+        );
+
+      // Cliente pode atualizar os próprios dados,
+      // mas não pode alterar role, active, uid ou email.
+      allow update: if
+        isAdmin() ||
+        (
+          request.auth != null &&
+          request.auth.uid == userId &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.active == resource.data.active
+        );
+
+      allow delete: if isAdmin();
     }
 
     match /bookings/{bookingId} {
@@ -13,32 +61,149 @@ service cloud.firestore {
         request.resource.data.customerPhone is string &&
         request.resource.data.carId is string &&
         request.resource.data.pickupDate is string &&
+        request.resource.data.pickupTime is string &&
         request.resource.data.returnDate is string &&
-        request.resource.data.status == "pending";
+        request.resource.data.returnTime is string &&
+        request.resource.data.status in [
+          "pending",
+          "pending_payment"
+        ];
 
-      allow read, update, delete: if isAdmin();
+      // Admin pode ler todas.
+      //
+      // Cliente autenticado pode ler:
+      // 1. reservas ligadas diretamente ao seu Firebase UID;
+      // 2. reservas antigas pelo email, mas apenas depois
+      //    de verificar o email no Firebase.
+      allow read: if
+        isAdminOrStaff() ||
+        (
+          request.auth != null &&
+          (
+            resource.data.authUid == request.auth.uid ||
+            (
+              request.auth.token.email_verified == true &&
+              resource.data.customerEmail == request.auth.token.email
+            )
+          )
+        );
+
+      allow update: if isAdminOrStaff();
+      allow delete: if isAdmin();
     }
 
     match /bookingStatus/{reference} {
-      allow read: if true;
-      allow create: if
-        request.resource.data.reference == reference &&
-        request.resource.data.status in ["pending", "confirmed", "cancelled"] &&
-        request.resource.data.carId is string &&
-        request.resource.data.pickupDate is string &&
-        request.resource.data.returnDate is string;
+      // Consulta pública apenas por referência exata.
+      allow get: if true;
+      allow list: if false;
 
-      allow update, delete: if isAdmin();
+      // O cliente só pode criar a versão pública mínima da reserva.
+      allow create: if
+        request.resource.data.keys().hasAll([
+          "reference",
+          "status",
+          "carId",
+          "carBrand",
+          "carModel",
+          "pickupDate",
+          "pickupTime",
+          "returnDate",
+          "returnTime",
+          "totalDays",
+          "rentalModeLabel",
+          "pricePerDay",
+          "premiumPricePerDay",
+          "dailyRate",
+          "normalExcess",
+          "appliedExcess",
+          "refundableDeposit",
+          "estimatedTotal",
+          "currency",
+          "paymentStatus",
+          "depositStatus"
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          "reference",
+          "status",
+          "carId",
+          "carBrand",
+          "carModel",
+          "pickupDate",
+          "pickupTime",
+          "returnDate",
+          "returnTime",
+          "totalDays",
+          "rentalModeLabel",
+          "pricePerDay",
+          "premiumPricePerDay",
+          "dailyRate",
+          "normalExcess",
+          "appliedExcess",
+          "refundableDeposit",
+          "estimatedTotal",
+          "currency",
+          "paymentStatus",
+          "depositStatus"
+        ]) &&
+        request.resource.data.reference == reference &&
+        request.resource.data.status in [
+          "pending",
+          "pending_payment"
+        ] &&
+        request.resource.data.carId is string &&
+        request.resource.data.carBrand is string &&
+        request.resource.data.carModel is string &&
+        request.resource.data.pickupDate is string &&
+        request.resource.data.pickupTime is string &&
+        request.resource.data.returnDate is string &&
+        request.resource.data.returnTime is string &&
+        request.resource.data.totalDays is number &&
+        request.resource.data.rentalModeLabel is string &&
+        request.resource.data.pricePerDay is number &&
+        request.resource.data.premiumPricePerDay is number &&
+        request.resource.data.dailyRate is number &&
+        request.resource.data.normalExcess is number &&
+        request.resource.data.appliedExcess is number &&
+        request.resource.data.refundableDeposit is number &&
+        request.resource.data.estimatedTotal is number &&
+        request.resource.data.currency is string &&
+        request.resource.data.paymentStatus == "pending" &&
+        request.resource.data.depositStatus == "pending";
+
+      allow update: if isAdminOrStaff();
+      allow delete: if isAdmin();
     }
 
     match /availabilityLocks/{lockId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdminOrStaff();
+      allow delete: if isAdmin();
     }
 
     match /carCatalog/{carId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+
+    match /maintenanceRecords/{recordId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    match /fleetExpenses/{expenseId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    match /customers/{customerId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    match /financialReports/{reportId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {

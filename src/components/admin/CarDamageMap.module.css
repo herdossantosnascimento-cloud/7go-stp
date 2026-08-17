@@ -1,0 +1,438 @@
+.wrapper {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  padding: 20px;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(239, 68, 68, 0.12),
+      transparent 42%
+    ),
+    rgba(15, 23, 42, 0.46);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header h4,
+.editorHeader h5 {
+  margin: 3px 0 5px;
+  color: #f8fafc;
+}
+
+.header h4 {
+  font-size: 17px;
+}
+
+.editorHeader h5 {
+  font-size: 16px;
+}
+
+.header p {
+  max-width: 650px;
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.eyebrow {
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.counter {
+  display: inline-flex;
+  min-height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 6px 11px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.previousLegend {
+  background: #2563eb;
+}
+
+.newLegend {
+  background: #dc2626;
+}
+
+.map {
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.025),
+    rgba(2, 6, 23, 0.25)
+  );
+}
+
+.vehicle {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 240px;
+  color: #94a3b8;
+  cursor: crosshair;
+}
+
+.carOutline {
+  fill: url("#carDamageBody");
+  stroke: currentColor;
+  stroke-width: 4;
+}
+
+.window {
+  fill: rgba(59, 130, 246, 0.14);
+  stroke: #64748b;
+  stroke-width: 3;
+}
+
+.divider {
+  stroke: #64748b;
+  stroke-width: 3;
+}
+
+.wheel {
+  fill: #111827;
+  stroke: #64748b;
+  stroke-width: 4;
+}
+
+.wheelInner {
+  fill: #334155;
+  stroke: #94a3b8;
+  stroke-width: 3;
+}
+
+.detail {
+  fill: rgba(250, 204, 21, 0.18);
+  stroke: rgba(250, 204, 21, 0.55);
+  stroke-width: 2;
+}
+
+.marker {
+  cursor: pointer;
+  outline: none;
+}
+
+.marker circle {
+  stroke-width: 4;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.marker text {
+  fill: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.marker:hover circle,
+.marker:focus-visible circle {
+  transform: scale(1.16);
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.previousMarker {
+  color: #60a5fa;
+  cursor: default;
+}
+
+.previousMarker circle {
+  fill: #2563eb;
+  stroke: #bfdbfe;
+}
+
+.currentMarker {
+  color: #f87171;
+}
+
+.currentMarker circle {
+  fill: #dc2626;
+  stroke: #fecaca;
+}
+
+.damageList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 9px;
+}
+
+.damageItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.38);
+  color: #cbd5e1;
+  text-align: left;
+  cursor: pointer;
+}
+
+.damageItem:hover,
+.damageItemActive {
+  border-color: rgba(239, 68, 68, 0.52);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.itemNumber {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.itemText {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.itemText strong {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemText small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.editor {
+  display: grid;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 15px;
+  background: rgba(2, 6, 23, 0.52);
+}
+
+.editorHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.closeButton {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.field textarea,
+.field select {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 92px;
+  padding: 11px;
+  resize: vertical;
+}
+
+.field select {
+  min-height: 43px;
+  padding: 0 11px;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.deleteButton,
+.doneButton {
+  min-height: 40px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.deleteButton {
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+.doneButton {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.empty {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: 11px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-align: center;
+}
+
+:global(html:not([data-theme="night"])) .wrapper {
+  border-color: rgba(220, 38, 38, 0.18);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(239, 68, 68, 0.08),
+      transparent 42%
+    ),
+    #ffffff;
+}
+
+:global(html:not([data-theme="night"])) .header h4,
+:global(html:not([data-theme="night"])) .editorHeader h5,
+:global(html:not([data-theme="night"])) .itemText strong {
+  color: #0f172a;
+}
+
+:global(html:not([data-theme="night"])) .header p,
+:global(html:not([data-theme="night"])) .empty,
+:global(html:not([data-theme="night"])) .itemText small {
+  color: #64748b;
+}
+
+:global(html:not([data-theme="night"])) .map {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: #f8fafc;
+}
+
+:global(html:not([data-theme="night"])) .vehicle {
+  color: #64748b;
+}
+
+:global(html:not([data-theme="night"])) .damageItem,
+:global(html:not([data-theme="night"])) .editor {
+  background: #f8fafc;
+}
+
+:global(html:not([data-theme="night"])) .field {
+  color: #334155;
+}
+
+:global(html:not([data-theme="night"])) .field textarea,
+:global(html:not([data-theme="night"])) .field select {
+  border-color: rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .wrapper {
+    gap: 14px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+
+  .counter {
+    align-self: flex-start;
+  }
+
+  .map {
+    overflow-x: auto;
+    padding: 6px;
+  }
+
+  .vehicle {
+    min-width: 620px;
+    min-height: 270px;
+  }
+
+  .damageList {
+    grid-template-columns: 1fr;
+  }
+
+  .editorActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .deleteButton,
+  .doneButton {
+    width: 100%;
+  }
+}

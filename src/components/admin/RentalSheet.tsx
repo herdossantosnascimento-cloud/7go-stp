@@ -1,48 +1,82 @@
 "use client";
 
-import {
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import {
-  onAuthStateChanged,
-  type User,
-} from "firebase/auth";
+import QRCode from "qrcode";
+import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase/client";
 
 type BookingStatus =
-  | "pending"
-  | "confirmed"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+  "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 type PaymentStatus = "pending" | "partial" | "paid";
 
-type DepositStatus =
-  | "pending"
-  | "received"
-  | "returned"
-  | "retained";
+type DepositStatus = "pending" | "received" | "returned" | "retained";
 
 type FuelLevel =
   | "empty"
+  | "one_eighth"
   | "quarter"
+  | "three_eighths"
   | "half"
+  | "five_eighths"
   | "three_quarters"
+  | "seven_eighths"
   | "full";
 
 type VehicleCondition = "good" | "observations";
 
 type VehicleInspection = {
+  registrationPlate?: string;
   mileage?: number;
   fuelLevel?: FuelLevel;
   condition?: VehicleCondition;
   notes?: string;
+  photoUrls?: string[];
+  inspectionPhotos?: {
+    front?: string;
+    rear?: string;
+    left?: string;
+    right?: string;
+    interior?: string;
+    dashboard?: string;
+  };
+  customerSignatureUrl?: string;
+  customerSignedAt?: string;
+  staffSignatureUrl?: string;
+  staffSignedAt?: string;
   hasDamage?: boolean;
   damageDescription?: string;
   damageAmount?: number;
+  damageZones?: Array<
+    | {
+        id: string;
+        x: number;
+        y: number;
+        description: string;
+        severity: "light" | "medium" | "severe";
+        createdAt?: string;
+      }
+    | "front"
+    | "bonnet"
+    | "windscreen"
+    | "roof"
+    | "rear"
+    | "left_front"
+    | "left_rear"
+    | "right_front"
+    | "right_rear"
+  >;
+  fuelCharge?: number;
+  cleaningRequired?: boolean;
+  cleaningNotes?: string;
+  cleaningAmount?: number;
+  depositReceived?: boolean;
+  depositPaymentMethod?: "cash" | "transfer" | "pos";
+  depositAmount?: number;
+  depositRefundAmount?: number;
+  depositRetainedAmount?: number;
+  additionalAmountDue?: number;
   completed?: boolean;
 };
 
@@ -59,11 +93,7 @@ type DriverDetails = {
   secondDriverLicenceExpiry?: string;
 };
 
-type PaymentMethod =
-  | "cash"
-  | "bank_transfer"
-  | "card"
-  | "other";
+type PaymentMethod = "cash" | "bank_transfer" | "card" | "other";
 
 type FinancialDetails = {
   amountPaid?: number;
@@ -88,7 +118,10 @@ type Booking = {
   carInsurancePolicyNumber?: string;
   carInsuranceExpiry?: string;
   pickupDate?: string;
+  pickupTime?: string;
   returnDate?: string;
+  returnTime?: string;
+  rentalHours?: number;
   totalDays?: number;
   rentalModeLabel?: string;
   pricePerDay?: number;
@@ -101,6 +134,12 @@ type Booking = {
   currency?: string;
   customerName?: string;
   customerPhone?: string;
+  customerEmail?: string;
+  finalSheetEmail?: string;
+  finalSheetSentTo?: string;
+  finalSheetSentAt?: unknown;
+  verificationCode?: string;
+  verificationIssuedAt?: unknown;
   message?: string;
   paymentStatus?: PaymentStatus;
   depositStatus?: DepositStatus;
@@ -150,9 +189,13 @@ const paymentMethodLabel: Record<PaymentMethod, string> = {
 
 const fuelLevelLabel: Record<FuelLevel, string> = {
   empty: "Vazio",
+  one_eighth: "1/8",
   quarter: "1/4",
+  three_eighths: "3/8",
   half: "1/2",
+  five_eighths: "5/8",
   three_quarters: "3/4",
+  seven_eighths: "7/8",
   full: "Cheio",
 };
 
@@ -172,10 +215,7 @@ function showValue(
   return String(value);
 }
 
-function money(
-  currency: string,
-  value: number | null | undefined,
-) {
+function money(currency: string, value: number | null | undefined) {
   if (value === undefined || value === null) {
     return "Não registado";
   }
@@ -183,16 +223,353 @@ function money(
   return `${currency}${value}`;
 }
 
+type RentalSheetDamageSeverity = "light" | "medium" | "severe";
+
+type RentalSheetDamageMarker = {
+  id: string;
+  x: number;
+  y: number;
+  description: string;
+  severity: RentalSheetDamageSeverity;
+  createdAt?: string;
+};
+
+type RentalSheetDamageValue =
+  | RentalSheetDamageMarker
+  | "front"
+  | "bonnet"
+  | "windscreen"
+  | "roof"
+  | "rear"
+  | "left_front"
+  | "left_rear"
+  | "right_front"
+  | "right_rear";
+
+const rentalSheetLegacyDamagePositions: Record<
+  Exclude<RentalSheetDamageValue, RentalSheetDamageMarker>,
+  {
+    x: number;
+    y: number;
+    description: string;
+  }
+> = {
+  front: {
+    x: 13,
+    y: 55,
+    description: "Frente",
+  },
+  bonnet: {
+    x: 26,
+    y: 42,
+    description: "Capô",
+  },
+  windscreen: {
+    x: 40,
+    y: 31,
+    description: "Para-brisas",
+  },
+  roof: {
+    x: 54,
+    y: 16,
+    description: "Tejadilho",
+  },
+  rear: {
+    x: 88,
+    y: 49,
+    description: "Traseira",
+  },
+  left_front: {
+    x: 35,
+    y: 55,
+    description: "Lateral esquerda dianteira",
+  },
+  left_rear: {
+    x: 67,
+    y: 55,
+    description: "Lateral esquerda traseira",
+  },
+  right_front: {
+    x: 35,
+    y: 83,
+    description: "Lateral direita dianteira",
+  },
+  right_rear: {
+    x: 67,
+    y: 83,
+    description: "Lateral direita traseira",
+  },
+};
+
+const rentalSheetSeverityLabel: Record<RentalSheetDamageSeverity, string> = {
+  light: "Ligeiro",
+  medium: "Médio",
+  severe: "Grave",
+};
+
+function normalizeRentalSheetDamageMarkers(
+  values: RentalSheetDamageValue[] | undefined,
+  source: string,
+): RentalSheetDamageMarker[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map((value, index) => {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        typeof value.x === "number" &&
+        typeof value.y === "number"
+      ) {
+        return {
+          id:
+            typeof value.id === "string" && value.id
+              ? value.id
+              : `${source}-${index + 1}`,
+          x: Math.min(100, Math.max(0, value.x)),
+          y: Math.min(100, Math.max(0, value.y)),
+          description:
+            typeof value.description === "string" ? value.description : "",
+          severity:
+            value.severity === "medium" || value.severity === "severe"
+              ? value.severity
+              : "light",
+          createdAt: value.createdAt,
+        };
+      }
+
+      if (
+        typeof value === "string" &&
+        value in rentalSheetLegacyDamagePositions
+      ) {
+        const legacy =
+          rentalSheetLegacyDamagePositions[
+            value as keyof typeof rentalSheetLegacyDamagePositions
+          ];
+
+        return {
+          id: `${source}-legacy-${value}-${index}`,
+          x: legacy.x,
+          y: legacy.y,
+          description: legacy.description,
+          severity: "light",
+        };
+      }
+
+      return null;
+    })
+    .filter((marker): marker is RentalSheetDamageMarker => marker !== null);
+}
+
+function RentalSheetDamageMap({
+  title,
+  markers,
+  previousMarkers = [],
+}: {
+  title: string;
+  markers: RentalSheetDamageValue[];
+  previousMarkers?: RentalSheetDamageValue[];
+}) {
+  const current = normalizeRentalSheetDamageMarkers(markers, "current");
+
+  const previous = normalizeRentalSheetDamageMarkers(
+    previousMarkers,
+    "previous",
+  );
+
+  return (
+    <div className="rental-sheet-damage-map">
+      <div className="rental-sheet-damage-map-header">
+        <div>
+          <span>Mapa visual de danos</span>
+          <strong>{title}</strong>
+        </div>
+
+        <small>
+          {current.length}{" "}
+          {current.length === 1 ? "dano registado" : "danos registados"}
+        </small>
+      </div>
+
+      {previous.length > 0 && (
+        <div className="rental-sheet-damage-map-legend">
+          <span>
+            <i className="rental-sheet-damage-previous-dot" />
+            Danos existentes na entrega
+          </span>
+
+          <span>
+            <i className="rental-sheet-damage-current-dot" />
+            Novos danos na devolução
+          </span>
+        </div>
+      )}
+
+      <div className="rental-sheet-damage-map-canvas">
+        <svg viewBox="0 0 800 360" role="img" aria-label={title}>
+          <defs>
+            <linearGradient
+              id={`rentalSheetCarBody-${title.replace(/\s+/g, "-")}`}
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" />
+
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0.06" />
+            </linearGradient>
+          </defs>
+
+          <path
+            className="rental-sheet-car-outline"
+            d="M108 205
+               L143 139
+               Q155 115 183 106
+               L288 74
+               Q318 64 349 64
+               L487 64
+               Q518 65 541 83
+               L621 145
+               L687 164
+               Q716 173 727 199
+               L740 230
+               Q747 249 728 259
+               L690 270
+               L121 270
+               Q88 267 76 245
+               Q67 226 82 214
+               Z"
+          />
+
+          <path
+            className="rental-sheet-car-window"
+            d="M315 84 L352 78 L479 78 Q498 79 514 91 L573 139 L294 139 Z"
+          />
+
+          <line
+            className="rental-sheet-car-divider"
+            x1="395"
+            y1="79"
+            x2="390"
+            y2="139"
+          />
+
+          <line
+            className="rental-sheet-car-divider"
+            x1="520"
+            y1="96"
+            x2="497"
+            y2="139"
+          />
+
+          <circle className="rental-sheet-car-wheel" cx="210" cy="266" r="50" />
+
+          <circle
+            className="rental-sheet-car-wheel-inner"
+            cx="210"
+            cy="266"
+            r="25"
+          />
+
+          <circle className="rental-sheet-car-wheel" cx="615" cy="266" r="50" />
+
+          <circle
+            className="rental-sheet-car-wheel-inner"
+            cx="615"
+            cy="266"
+            r="25"
+          />
+
+          {previous.map((marker, index) => (
+            <g
+              key={marker.id}
+              className="rental-sheet-damage-marker rental-sheet-damage-marker-previous"
+              transform={`translate(${(marker.x / 100) * 800} ${
+                (marker.y / 100) * 360
+              })`}
+            >
+              <circle r="18" />
+              <text y="5">{index + 1}</text>
+            </g>
+          ))}
+
+          {current.map((marker, index) => (
+            <g
+              key={marker.id}
+              className="rental-sheet-damage-marker rental-sheet-damage-marker-current"
+              transform={`translate(${(marker.x / 100) * 800} ${
+                (marker.y / 100) * 360
+              })`}
+            >
+              <circle r="18" />
+              <text y="5">{index + 1}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      {previous.length > 0 && (
+        <div className="rental-sheet-damage-list rental-sheet-damage-list-previous">
+          <h4>Danos registados na entrega</h4>
+
+          {previous.map((marker, index) => (
+            <div key={marker.id} className="rental-sheet-damage-list-item">
+              <span>{index + 1}</span>
+
+              <div>
+                <strong>
+                  {marker.description.trim() || `Dano ${index + 1}`}
+                </strong>
+
+                <small>{rentalSheetSeverityLabel[marker.severity]}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {current.length > 0 && (
+        <div className="rental-sheet-damage-list">
+          <h4>
+            {previous.length > 0
+              ? "Novos danos registados na devolução"
+              : "Danos registados"}
+          </h4>
+
+          {current.map((marker, index) => (
+            <div key={marker.id} className="rental-sheet-damage-list-item">
+              <span>{index + 1}</span>
+
+              <div>
+                <strong>
+                  {marker.description.trim() || `Dano ${index + 1}`}
+                </strong>
+
+                <small>{rentalSheetSeverityLabel[marker.severity]}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InspectionSection({
   title,
   inspection,
   currency,
   isReturn = false,
+  previousDamageZones = [],
 }: {
   title: string;
   inspection?: VehicleInspection;
   currency: string;
   isReturn?: boolean;
+  previousDamageZones?: RentalSheetDamageValue[];
 }) {
   if (!inspection?.completed) {
     return (
@@ -215,12 +592,17 @@ function InspectionSection({
     <section className="rental-sheet-section">
       <div className="rental-sheet-section-title">
         <h2>{title}</h2>
-        <span className="rental-sheet-badge">
-          Registada
-        </span>
+        <span className="rental-sheet-badge">Registada</span>
       </div>
 
       <div className="rental-sheet-data-grid">
+        <div>
+          <span>Matrícula</span>
+          <strong>
+            {inspection.registrationPlate?.trim() || "Não registada"}
+          </strong>
+        </div>
+
         <div>
           <span>Quilometragem</span>
           <strong>
@@ -251,20 +633,171 @@ function InspectionSection({
         {isReturn && (
           <div>
             <span>Novos danos</span>
-            <strong>
-              {inspection.hasDamage ? "Sim" : "Não"}
-            </strong>
+            <strong>{inspection.hasDamage ? "Sim" : "Não"}</strong>
           </div>
         )}
       </div>
 
       <div className="rental-sheet-note">
         <span>Observações</span>
-        <p>
-          {inspection.notes?.trim() ||
-            "Sem observações registadas."}
-        </p>
+        <p>{inspection.notes?.trim() || "Sem observações registadas."}</p>
       </div>
+
+      <RentalSheetDamageMap
+        title={
+          isReturn
+            ? "Comparação do estado da viatura"
+            : "Estado da viatura na entrega"
+        }
+        markers={(inspection.damageZones ?? []) as RentalSheetDamageValue[]}
+        previousMarkers={isReturn ? previousDamageZones : []}
+      />
+
+      {(() => {
+        const identifiedPhotos = [
+          {
+            key: "front",
+            label: "Frente",
+            url: inspection.inspectionPhotos?.front,
+          },
+          {
+            key: "rear",
+            label: "Traseira",
+            url: inspection.inspectionPhotos?.rear,
+          },
+          {
+            key: "left",
+            label: "Lado esquerdo",
+            url: inspection.inspectionPhotos?.left,
+          },
+          {
+            key: "right",
+            label: "Lado direito",
+            url: inspection.inspectionPhotos?.right,
+          },
+          {
+            key: "interior",
+            label: "Interior",
+            url: inspection.inspectionPhotos?.interior,
+          },
+          {
+            key: "dashboard",
+            label: "Painel / KM",
+            url: inspection.inspectionPhotos?.dashboard,
+          },
+        ].filter((photo) => Boolean(photo.url));
+
+        if (identifiedPhotos.length > 0) {
+          return (
+            <div className="rental-sheet-photos">
+              <span>Fotografias identificadas</span>
+
+              <div className="rental-sheet-identified-photo-grid">
+                {identifiedPhotos.map((photo) => (
+                  <article
+                    key={photo.key}
+                    className="rental-sheet-identified-photo"
+                  >
+                    <strong>{photo.label}</strong>
+
+                    <a href={photo.url} target="_blank" rel="noreferrer">
+                      <img
+                        src={photo.url}
+                        alt={`${title} — ${photo.label}`}
+                        loading="lazy"
+                      />
+                    </a>
+                  </article>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if ((inspection.photoUrls ?? []).length > 0) {
+          return (
+            <div className="rental-sheet-photos">
+              <span>Fotografias</span>
+
+              <div className="rental-sheet-photo-grid">
+                {(inspection.photoUrls ?? []).map((photoUrl, photoIndex) => (
+                  <a
+                    key={photoUrl}
+                    href={photoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Abrir fotografia ${photoIndex + 1}`}
+                  >
+                    <img
+                      src={photoUrl}
+                      alt={`${title} — fotografia ${photoIndex + 1}`}
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
+      {(inspection.customerSignatureUrl || inspection.staffSignatureUrl) && (
+        <div className="rental-sheet-signatures">
+          <span>Assinaturas</span>
+
+          <div className="rental-sheet-signature-grid">
+            {inspection.customerSignatureUrl && (
+              <div className="rental-sheet-signature">
+                <strong>Cliente</strong>
+
+                <a
+                  href={inspection.customerSignatureUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    src={inspection.customerSignatureUrl}
+                    alt={`${title} — assinatura do cliente`}
+                  />
+                </a>
+
+                <small>
+                  {inspection.customerSignedAt
+                    ? new Date(inspection.customerSignedAt).toLocaleString(
+                        "pt-PT",
+                      )
+                    : "Data não registada"}
+                </small>
+              </div>
+            )}
+
+            {inspection.staffSignatureUrl && (
+              <div className="rental-sheet-signature">
+                <strong>Funcionário 7Go</strong>
+
+                <a
+                  href={inspection.staffSignatureUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    src={inspection.staffSignatureUrl}
+                    alt={`${title} — assinatura do funcionário`}
+                  />
+                </a>
+
+                <small>
+                  {inspection.staffSignedAt
+                    ? new Date(inspection.staffSignedAt).toLocaleString("pt-PT")
+                    : "Data não registada"}
+                </small>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isReturn && inspection.hasDamage && (
         <div className="rental-sheet-damage">
@@ -278,9 +811,61 @@ function InspectionSection({
 
           <div>
             <span>Valor associado</span>
-            <strong>
-              {money(currency, inspection.damageAmount)}
-            </strong>
+            <strong>{money(currency, inspection.damageAmount)}</strong>
+          </div>
+        </div>
+      )}
+
+      {isReturn && (
+        <div className="rental-sheet-damage">
+          <div>
+            <span>Limpeza especial</span>
+            <strong>{inspection.cleaningRequired ? "Sim" : "Não"}</strong>
+          </div>
+
+          {inspection.cleaningRequired && (
+            <>
+              <div>
+                <span>Motivo da limpeza</span>
+                <p>
+                  {inspection.cleaningNotes?.trim() || "Sem motivo registado."}
+                </p>
+              </div>
+
+              <div>
+                <span>Valor da limpeza</span>
+                <strong>{money(currency, inspection.cleaningAmount)}</strong>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {isReturn && (
+        <div className="rental-sheet-damage">
+          <div>
+            <span>Combustível cobrado</span>
+            <strong>{money(currency, inspection.fuelCharge)}</strong>
+          </div>
+
+          <div>
+            <span>Caução recebida</span>
+            <strong>{money(currency, inspection.depositAmount)}</strong>
+          </div>
+
+          <div>
+            <span>Total retido</span>
+            <strong>{money(currency, inspection.depositRetainedAmount)}</strong>
+          </div>
+
+          <div>
+            <span>Valor devolvido</span>
+            <strong>{money(currency, inspection.depositRefundAmount)}</strong>
+          </div>
+
+          <div>
+            <span>Valor adicional a pagar</span>
+            <strong>{money(currency, inspection.additionalAmountDue)}</strong>
           </div>
         </div>
       )}
@@ -288,16 +873,15 @@ function InspectionSection({
   );
 }
 
-export function RentalSheet({
-  bookingId,
-}: {
-  bookingId: string;
-}) {
+export function RentalSheet({ bookingId }: { bookingId: string }) {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [catalogVehicle, setCatalogVehicle] =
-    useState<CatalogVehicle | null>(null);
+  const [sendingFinalSheet, setSendingFinalSheet] = useState(false);
+  const [verificationQrUrl, setVerificationQrUrl] = useState("");
+  const [catalogVehicle, setCatalogVehicle] = useState<CatalogVehicle | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -323,9 +907,7 @@ export function RentalSheet({
       setError("");
 
       try {
-        const snapshot = await getDoc(
-          doc(db, "bookings", bookingId),
-        );
+        const snapshot = await getDoc(doc(db, "bookings", bookingId));
 
         if (!snapshot.exists()) {
           setError("Reserva não encontrada.");
@@ -339,13 +921,9 @@ export function RentalSheet({
         } as Booking);
       } catch (loadError) {
         const message =
-          loadError instanceof Error
-            ? loadError.message
-            : "Erro desconhecido.";
+          loadError instanceof Error ? loadError.message : "Erro desconhecido.";
 
-        setError(
-          `Não foi possível carregar a ficha: ${message}`,
-        );
+        setError(`Não foi possível carregar a ficha: ${message}`);
       } finally {
         setLoading(false);
       }
@@ -365,9 +943,7 @@ export function RentalSheet({
 
     async function loadCatalogVehicle() {
       try {
-        const snapshot = await getDoc(
-          doc(db, "carCatalog", carId),
-        );
+        const snapshot = await getDoc(doc(db, "carCatalog", carId));
 
         if (!active) {
           return;
@@ -386,17 +962,9 @@ export function RentalSheet({
               ? data.registrationPlate
               : "",
           vehicleColor:
-            typeof data.vehicleColor === "string"
-              ? data.vehicleColor
-              : "",
-          vin:
-            typeof data.vin === "string"
-              ? data.vin
-              : "",
-          insurer:
-            typeof data.insurer === "string"
-              ? data.insurer
-              : "",
+            typeof data.vehicleColor === "string" ? data.vehicleColor : "",
+          vin: typeof data.vin === "string" ? data.vin : "",
+          insurer: typeof data.insurer === "string" ? data.insurer : "",
           insurancePolicyNumber:
             typeof data.insurancePolicyNumber === "string"
               ? data.insurancePolicyNumber
@@ -407,10 +975,7 @@ export function RentalSheet({
               : "",
         });
       } catch (catalogError) {
-        console.error(
-          "ERRO AO CARREGAR DADOS DA VIATURA:",
-          catalogError,
-        );
+        console.error("ERRO AO CARREGAR DADOS DA VIATURA:", catalogError);
 
         if (active) {
           setCatalogVehicle(null);
@@ -425,6 +990,49 @@ export function RentalSheet({
     };
   }, [booking?.carId, user]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function generateVerificationQr() {
+      const code = booking?.verificationCode?.trim();
+
+      if (!code) {
+        setVerificationQrUrl("");
+        return;
+      }
+
+      try {
+        const verificationUrl = `${window.location.origin}/verificar/${encodeURIComponent(code)}`;
+
+        const dataUrl = await QRCode.toDataURL(verificationUrl, {
+          errorCorrectionLevel: "M",
+          margin: 1,
+          width: 280,
+          color: {
+            dark: "#071109",
+            light: "#FFFFFF",
+          },
+        });
+
+        if (active) {
+          setVerificationQrUrl(dataUrl);
+        }
+      } catch (error) {
+        console.error("ERRO AO GERAR QR CODE:", error);
+
+        if (active) {
+          setVerificationQrUrl("");
+        }
+      }
+    }
+
+    void generateVerificationQr();
+
+    return () => {
+      active = false;
+    };
+  }, [booking?.verificationCode]);
+
   if (!authChecked || loading) {
     return (
       <main className="rental-sheet-state">
@@ -437,13 +1045,9 @@ export function RentalSheet({
     return (
       <main className="rental-sheet-state">
         <h1>Acesso privado 7Go</h1>
-        <p>
-          Inicia sessão no Admin antes de abrir esta ficha.
-        </p>
+        <p>Inicia sessão no Admin antes de abrir esta ficha.</p>
 
-        <a href="/admin/reservas">
-          Voltar ao Admin
-        </a>
+        <a href="/admin/reservas">Voltar ao Admin</a>
       </main>
     );
   }
@@ -454,17 +1058,14 @@ export function RentalSheet({
         <h1>Ficha indisponível</h1>
         <p>{error || "Reserva não encontrada."}</p>
 
-        <a href="/admin/reservas">
-          Voltar ao Admin
-        </a>
+        <a href="/admin/reservas">Voltar ao Admin</a>
       </main>
     );
   }
 
-  const currency = booking.currency || "£";
+  const currency = booking.currency || "€";
   const status = booking.status || "pending";
-  const appliedExcess =
-    booking.appliedExcess ?? booking.normalExcess;
+  const appliedExcess = booking.appliedExcess ?? booking.normalExcess;
 
   const registrationPlate =
     booking.carRegistrationPlate?.trim() ||
@@ -477,14 +1078,10 @@ export function RentalSheet({
     "";
 
   const vehicleVin =
-    booking.carVin?.trim() ||
-    catalogVehicle?.vin?.trim() ||
-    "";
+    booking.carVin?.trim() || catalogVehicle?.vin?.trim() || "";
 
   const vehicleInsurer =
-    booking.carInsurer?.trim() ||
-    catalogVehicle?.insurer?.trim() ||
-    "";
+    booking.carInsurer?.trim() || catalogVehicle?.insurer?.trim() || "";
 
   const vehicleInsurancePolicyNumber =
     booking.carInsurancePolicyNumber?.trim() ||
@@ -495,6 +1092,99 @@ export function RentalSheet({
     booking.carInsuranceExpiry?.trim() ||
     catalogVehicle?.insuranceExpiry?.trim() ||
     "";
+
+  async function handleSendFinalSheet() {
+    if (!booking || sendingFinalSheet) return;
+
+    if (!booking.customerEmail) {
+      alert("Esta reserva não tem email do cliente registado.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Enviar a ficha final da reserva ${
+        booking.reference || booking.id
+      } para ${booking.customerEmail}?`,
+    );
+
+    if (!confirmed) return;
+
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      alert("A sessão de Admin terminou. Inicia sessão novamente.");
+      return;
+    }
+
+    setSendingFinalSheet(true);
+
+    try {
+      const token = await currentUser.getIdToken();
+
+      const response = await fetch("/api/admin/send-final-rental-sheet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookingId }),
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+        sentTo?: string;
+        verificationCode?: string;
+        verificationUrl?: string;
+        verificationQrDataUrl?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Não foi possível enviar a ficha.");
+      }
+
+      if (result.verificationQrDataUrl) {
+        setVerificationQrUrl(result.verificationQrDataUrl);
+      }
+
+      if (result.verificationCode) {
+        setBooking((currentBooking) =>
+          currentBooking
+            ? {
+                ...currentBooking,
+                verificationCode: result.verificationCode,
+              }
+            : currentBooking,
+        );
+      }
+
+      const updatedSnapshot = await getDoc(doc(db, "bookings", bookingId));
+
+      if (updatedSnapshot.exists()) {
+        setBooking(
+          (currentBooking) =>
+            ({
+              ...(currentBooking ?? { id: updatedSnapshot.id }),
+              id: updatedSnapshot.id,
+              ...updatedSnapshot.data(),
+              verificationCode:
+                result.verificationCode ||
+                updatedSnapshot.data().verificationCode,
+            }) as Booking,
+        );
+      }
+
+      alert(
+        `Ficha final enviada para ${result.sentTo || booking.customerEmail}.`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido.";
+
+      alert(`Não foi possível enviar a ficha final: ${message}`);
+    } finally {
+      setSendingFinalSheet(false);
+    }
+  }
 
   function handlePrint() {
     window.focus();
@@ -511,41 +1201,71 @@ export function RentalSheet({
   return (
     <main className="rental-sheet-page">
       <div className="rental-sheet-toolbar">
-        <a href="/admin/reservas">
-          ← Voltar ao Admin
-        </a>
+        <a href="/admin/reservas">← Voltar ao Admin</a>
 
-        <button
-          type="button"
-          onClick={handlePrint}
-        >
-          Imprimir / Guardar PDF
-        </button>
+        <div className="rental-sheet-toolbar-actions">
+          {(status === "completed" || booking.checkin?.completed) && (
+            <button
+              type="button"
+              onClick={handleSendFinalSheet}
+              disabled={sendingFinalSheet}
+            >
+              {sendingFinalSheet
+                ? "A gerar e enviar..."
+                : booking.finalSheetSentAt
+                  ? "Reenviar ficha final"
+                  : "Enviar ficha final"}
+            </button>
+          )}
+
+          <button type="button" onClick={handlePrint}>
+            Imprimir / Guardar PDF
+          </button>
+        </div>
       </div>
 
       <article className="rental-sheet-document">
         <header className="rental-sheet-header">
-          <div>
-            <span className="rental-sheet-brand">
-              7GO
-            </span>
-            <p>DRIVE YOUR WAY</p>
+          <div className="rental-sheet-header-brand">
+            <img
+              src="/images/7go-stp-official-logo.png"
+              alt="7GO STP — Drive Your Way"
+              className="rental-sheet-official-logo"
+            />
+
+            <div className="rental-sheet-header-title">
+              <span>Ficha final de aluguer</span>
+              <p>Relatório de inspeção da viatura</p>
+              <small>Drive Your Way</small>
+            </div>
           </div>
 
           <div className="rental-sheet-reference">
+            {verificationQrUrl && (
+              <img
+                src={verificationQrUrl}
+                alt="QR Code para validar a ficha 7Go"
+                className="rental-sheet-verification-qr"
+              />
+            )}
+
             <span>Contrato / Ficha de aluguer</span>
-            <strong>
-              {booking.reference || "Sem referência"}
-            </strong>
+            <strong>{booking.reference || "Sem referência"}</strong>
             <small>{statusLabel[status]}</small>
+
+            {booking.verificationCode && (
+              <div className="rental-sheet-verification-code">
+                <b>Digitalize para validar</b>
+                <small>{booking.verificationCode}</small>
+              </div>
+            )}
           </div>
         </header>
 
         <section className="rental-sheet-document-intro">
           <strong>CONTRATO / FICHA DE ALUGUER DE VEÍCULO</strong>
           <p>
-            Documento associado à reserva{" "}
-            {booking.reference || booking.id}.
+            Documento associado à reserva {booking.reference || booking.id}.
           </p>
         </section>
 
@@ -557,44 +1277,32 @@ export function RentalSheet({
           <div className="rental-sheet-data-grid">
             <div>
               <span>Nome legal / Denominação</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>NIF</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>Licença / Alvará</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>Representante</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>Telefone</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>Email</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
           </div>
 
@@ -612,16 +1320,17 @@ export function RentalSheet({
           <div className="rental-sheet-data-grid">
             <div>
               <span>Cliente</span>
-              <strong>
-                {showValue(booking.customerName)}
-              </strong>
+              <strong>{showValue(booking.customerName)}</strong>
             </div>
 
             <div>
               <span>Contacto</span>
-              <strong>
-                {showValue(booking.customerPhone)}
-              </strong>
+              <strong>{showValue(booking.customerPhone)}</strong>
+            </div>
+
+            <div>
+              <span>Email</span>
+              <strong>{showValue(booking.customerEmail)}</strong>
             </div>
 
             <div>
@@ -637,64 +1346,49 @@ export function RentalSheet({
 
             <div>
               <span>Ano</span>
-              <strong>
-                {showValue(booking.carYear)}
-              </strong>
+              <strong>{showValue(booking.carYear)}</strong>
             </div>
 
             <div>
               <span>Matrícula</span>
-              <strong>
-                {showValue(registrationPlate)}
-              </strong>
+              <strong>{showValue(registrationPlate)}</strong>
             </div>
 
             <div>
               <span>Cor</span>
-              <strong>
-                {showValue(vehicleColor)}
-              </strong>
+              <strong>{showValue(vehicleColor)}</strong>
             </div>
 
             <div>
               <span>VIN / Número do chassis</span>
-              <strong>
-                {showValue(vehicleVin)}
-              </strong>
+              <strong>{showValue(vehicleVin)}</strong>
             </div>
 
             <div>
               <span>Seguradora</span>
-              <strong>
-                {showValue(vehicleInsurer)}
-              </strong>
+              <strong>{showValue(vehicleInsurer)}</strong>
             </div>
 
             <div>
               <span>Nº da apólice</span>
-              <strong>
-                {showValue(vehicleInsurancePolicyNumber)}
-              </strong>
+              <strong>{showValue(vehicleInsurancePolicyNumber)}</strong>
             </div>
 
             <div>
               <span>Validade do seguro</span>
-              <strong>
-                {showValue(vehicleInsuranceExpiry)}
-              </strong>
+              <strong>{showValue(vehicleInsuranceExpiry)}</strong>
             </div>
 
             <div>
               <span>Modalidade</span>
-              <strong>
-                {showValue(booking.rentalModeLabel)}
-              </strong>
+              <strong>{showValue(booking.rentalModeLabel)}</strong>
             </div>
 
             <div>
               <span>Data de entrega</span>
               <strong>
                 {showValue(booking.pickupDate)}
+                {booking.pickupTime ? ` às ${booking.pickupTime}` : ""}
               </strong>
             </div>
 
@@ -702,14 +1396,13 @@ export function RentalSheet({
               <span>Data de devolução</span>
               <strong>
                 {showValue(booking.returnDate)}
+                {booking.returnTime ? ` às ${booking.returnTime}` : ""}
               </strong>
             </div>
 
             <div>
               <span>Dias</span>
-              <strong>
-                {showValue(booking.totalDays)}
-              </strong>
+              <strong>{showValue(booking.totalDays)}</strong>
             </div>
 
             <div>
@@ -728,47 +1421,33 @@ export function RentalSheet({
             <div>
               <span>Documento / Passaporte</span>
               <strong>
-                {showValue(
-                  booking.driverDetails?.documentNumber,
-                )}
+                {showValue(booking.driverDetails?.documentNumber)}
               </strong>
             </div>
 
             <div>
               <span>Carta de condução</span>
               <strong>
-                {showValue(
-                  booking.driverDetails?.drivingLicenceNumber,
-                )}
+                {showValue(booking.driverDetails?.drivingLicenceNumber)}
               </strong>
             </div>
 
             <div>
               <span>Validade da carta</span>
               <strong>
-                {showValue(
-                  booking.driverDetails?.drivingLicenceExpiry,
-                )}
+                {showValue(booking.driverDetails?.drivingLicenceExpiry)}
               </strong>
             </div>
 
             <div>
               <span>Nacionalidade</span>
-              <strong>
-                {showValue(
-                  booking.driverDetails?.nationality,
-                )}
-              </strong>
+              <strong>{showValue(booking.driverDetails?.nationality)}</strong>
             </div>
           </div>
 
           <div className="rental-sheet-note">
             <span>Morada</span>
-            <p>
-              {showValue(
-                booking.driverDetails?.address,
-              )}
-            </p>
+            <p>{showValue(booking.driverDetails?.address)}</p>
           </div>
 
           {booking.driverDetails?.secondDriverEnabled && (
@@ -779,9 +1458,7 @@ export function RentalSheet({
                 <div>
                   <span>Nome</span>
                   <strong>
-                    {showValue(
-                      booking.driverDetails?.secondDriverName,
-                    )}
+                    {showValue(booking.driverDetails?.secondDriverName)}
                   </strong>
                 </div>
 
@@ -789,8 +1466,7 @@ export function RentalSheet({
                   <span>Documento / Passaporte</span>
                   <strong>
                     {showValue(
-                      booking.driverDetails
-                        ?.secondDriverDocumentNumber,
+                      booking.driverDetails?.secondDriverDocumentNumber,
                     )}
                   </strong>
                 </div>
@@ -799,8 +1475,7 @@ export function RentalSheet({
                   <span>Carta de condução</span>
                   <strong>
                     {showValue(
-                      booking.driverDetails
-                        ?.secondDriverLicenceNumber,
+                      booking.driverDetails?.secondDriverLicenceNumber,
                     )}
                   </strong>
                 </div>
@@ -809,8 +1484,7 @@ export function RentalSheet({
                   <span>Validade da carta</span>
                   <strong>
                     {showValue(
-                      booking.driverDetails
-                        ?.secondDriverLicenceExpiry,
+                      booking.driverDetails?.secondDriverLicenceExpiry,
                     )}
                   </strong>
                 </div>
@@ -827,58 +1501,37 @@ export function RentalSheet({
           <div className="rental-sheet-data-grid">
             <div>
               <span>Preço base/dia</span>
-              <strong>
-                {money(currency, booking.pricePerDay)}
-              </strong>
+              <strong>{money(currency, booking.pricePerDay)}</strong>
             </div>
 
             <div>
               <span>Preço final/dia</span>
               <strong>
-                {money(
-                  currency,
-                  booking.dailyRate ??
-                    booking.pricePerDay,
-                )}
+                {money(currency, booking.dailyRate ?? booking.pricePerDay)}
               </strong>
             </div>
 
             <div>
               <span>Franquia aplicada</span>
-              <strong>
-                {money(currency, appliedExcess)}
-              </strong>
+              <strong>{money(currency, appliedExcess)}</strong>
             </div>
 
             <div>
               <span>Caução reembolsável</span>
-              <strong>
-                {money(
-                  currency,
-                  booking.refundableDeposit,
-                )}
-              </strong>
+              <strong>{money(currency, booking.refundableDeposit)}</strong>
             </div>
 
             <div>
               <span>Pagamento</span>
               <strong>
-                {
-                  paymentStatusLabel[
-                    booking.paymentStatus ?? "pending"
-                  ]
-                }
+                {paymentStatusLabel[booking.paymentStatus ?? "pending"]}
               </strong>
             </div>
 
             <div>
               <span>Estado da caução</span>
               <strong>
-                {
-                  depositStatusLabel[
-                    booking.depositStatus ?? "pending"
-                  ]
-                }
+                {depositStatusLabel[booking.depositStatus ?? "pending"]}
               </strong>
             </div>
 
@@ -886,10 +1539,7 @@ export function RentalSheet({
               <span>Valor pago</span>
               <strong>
                 {booking.financialDetails?.amountPaid != null
-                  ? money(
-                      currency,
-                      booking.financialDetails.amountPaid,
-                    )
+                  ? money(currency, booking.financialDetails.amountPaid)
                   : "Não registado"}
               </strong>
             </div>
@@ -914,9 +1564,7 @@ export function RentalSheet({
               <span>Método de pagamento</span>
               <strong>
                 {booking.financialDetails?.paymentMethod
-                  ? paymentMethodLabel[
-                      booking.financialDetails.paymentMethod
-                    ]
+                  ? paymentMethodLabel[booking.financialDetails.paymentMethod]
                   : "Não registado"}
               </strong>
             </div>
@@ -924,21 +1572,17 @@ export function RentalSheet({
             <div>
               <span>Data do pagamento</span>
               <strong>
-                {showValue(
-                  booking.financialDetails?.paymentDate,
-                )}
+                {showValue(booking.financialDetails?.paymentDate)}
               </strong>
             </div>
 
             <div>
               <span>Caução recebida</span>
               <strong>
-                {booking.financialDetails
-                  ?.depositReceivedAmount != null
+                {booking.financialDetails?.depositReceivedAmount != null
                   ? money(
                       currency,
-                      booking.financialDetails
-                        .depositReceivedAmount,
+                      booking.financialDetails.depositReceivedAmount,
                     )
                   : "Não registada"}
               </strong>
@@ -947,40 +1591,32 @@ export function RentalSheet({
             <div>
               <span>Data da caução</span>
               <strong>
-                {showValue(
-                  booking.financialDetails
-                    ?.depositReceivedDate,
-                )}
+                {showValue(booking.financialDetails?.depositReceivedDate)}
               </strong>
             </div>
           </div>
 
           <div className="rental-sheet-total">
             <span>Total estimado da reserva</span>
-            <strong>
-              {money(currency, booking.estimatedTotal)}
-            </strong>
+            <strong>{money(currency, booking.estimatedTotal)}</strong>
           </div>
 
           <div className="rental-sheet-rental-terms">
             <strong>Condições da modalidade</strong>
 
-            {booking.rentalModeLabel
-              ?.toLowerCase()
-              .includes("premium") ? (
+            {booking.rentalModeLabel?.toLowerCase().includes("premium") ? (
               <p>
-                Modalidade 7Go Premium: franquia de £0 para danos
-                cobertos pelas condições do aluguer. A caução
-                reembolsável continua obrigatória. Danos ou situações
-                excluídas das condições de proteção podem originar
-                custos adicionais.
+                Modalidade 7Go Premium: franquia de £0 para danos cobertos pelas
+                condições do aluguer. A caução reembolsável continua
+                obrigatória. Danos ou situações excluídas das condições de
+                proteção podem originar custos adicionais.
               </p>
             ) : (
               <p>
-                Modalidade Aluguer Normal: aplica-se a franquia
-                indicada nesta ficha para danos abrangidos. A caução
-                reembolsável é obrigatória e será tratada de acordo
-                com o estado da viatura e as condições do aluguer.
+                Modalidade Aluguer Normal: aplica-se a franquia indicada nesta
+                ficha para danos abrangidos. A caução reembolsável é obrigatória
+                e será tratada de acordo com o estado da viatura e as condições
+                do aluguer.
               </p>
             )}
           </div>
@@ -997,6 +1633,9 @@ export function RentalSheet({
           inspection={booking.checkin}
           currency={currency}
           isReturn
+          previousDamageZones={
+            (booking.checkout?.damageZones ?? []) as RentalSheetDamageValue[]
+          }
         />
 
         <section className="rental-sheet-contract">
@@ -1008,10 +1647,10 @@ export function RentalSheet({
             <article>
               <h3>1. Objeto do contrato</h3>
               <p>
-                A locadora entrega ao cliente, para utilização temporária,
-                a viatura identificada neste documento, nas condições,
-                datas, modalidade e valores aqui registados. A viatura
-                permanece propriedade da locadora durante todo o aluguer.
+                A locadora entrega ao cliente, para utilização temporária, a
+                viatura identificada neste documento, nas condições, datas,
+                modalidade e valores aqui registados. A viatura permanece
+                propriedade da locadora durante todo o aluguer.
               </p>
             </article>
 
@@ -1020,8 +1659,8 @@ export function RentalSheet({
               <p>
                 A viatura apenas pode ser conduzida pelo cliente ou pelos
                 condutores adicionais registados neste contrato, desde que
-                possuam documento de identificação e carta de condução
-                válidos para a categoria da viatura.
+                possuam documento de identificação e carta de condução válidos
+                para a categoria da viatura.
               </p>
             </article>
 
@@ -1029,16 +1668,15 @@ export function RentalSheet({
               <h3>3. Utilização da viatura</h3>
               <p>
                 O cliente compromete-se a utilizar a viatura com prudência,
-                respeitando as regras de circulação, capacidade de
-                passageiros, sinalização, limitações da via e instruções
-                fornecidas pela 7Go.
+                respeitando as regras de circulação, capacidade de passageiros,
+                sinalização, limitações da via e instruções fornecidas pela 7Go.
               </p>
 
               <p>
                 É proibida a utilização em corridas, competições, testes,
-                reboque não autorizado, transporte ilícito, subaluguer,
-                condução sob efeito de álcool, drogas ou substâncias que
-                reduzam a capacidade de condução.
+                reboque não autorizado, transporte ilícito, subaluguer, condução
+                sob efeito de álcool, drogas ou substâncias que reduzam a
+                capacidade de condução.
               </p>
             </article>
 
@@ -1046,9 +1684,9 @@ export function RentalSheet({
               <h3>4. Área de circulação</h3>
               <p>
                 A viatura deve circular apenas nas zonas autorizadas pela
-                locadora. A saída do território ou transporte da viatura
-                por barco, navio ou outro meio exige autorização prévia e
-                escrita da 7Go.
+                locadora. A saída do território ou transporte da viatura por
+                barco, navio ou outro meio exige autorização prévia e escrita da
+                7Go.
               </p>
             </article>
 
@@ -1056,40 +1694,37 @@ export function RentalSheet({
               <h3>5. Preço e pagamento</h3>
               <p>
                 O cliente obriga-se a pagar o preço total indicado neste
-                contrato, bem como extras, prolongamentos, combustível em
-                falta, limpeza extraordinária, multas, portagens, danos e
-                outros valores comprovadamente resultantes da utilização
-                da viatura.
+                contrato, bem como extras, prolongamentos, combustível em falta,
+                limpeza extraordinária, multas, portagens, danos e outros
+                valores comprovadamente resultantes da utilização da viatura.
               </p>
             </article>
 
             <article>
               <h3>6. Caução reembolsável</h3>
               <p>
-                A caução serve como garantia das obrigações do cliente.
-                Será devolvida após a verificação da viatura, deduzindo-se,
-                quando aplicável, valores relativos a danos, combustível,
-                atrasos, multas, limpeza, perda de chaves, documentos ou
-                outros incumprimentos devidamente registados.
+                A caução serve como garantia das obrigações do cliente. Será
+                devolvida após a verificação da viatura, deduzindo-se, quando
+                aplicável, valores relativos a danos, combustível, atrasos,
+                multas, limpeza, perda de chaves, documentos ou outros
+                incumprimentos devidamente registados.
               </p>
             </article>
 
             <article>
               <h3>7. Franquia e 7Go Premium</h3>
               <p>
-                No Aluguer Normal aplica-se a franquia indicada neste
-                documento. Na modalidade 7Go Premium, a franquia é de
-                £0 apenas para danos abrangidos pelas condições de
-                proteção.
+                No Aluguer Normal aplica-se a franquia indicada neste documento.
+                Na modalidade 7Go Premium, a franquia é de £0 apenas para danos
+                abrangidos pelas condições de proteção.
               </p>
 
               <p>
-                A franquia £0 não abrange conduta intencional ou
-                negligência grave, condução não autorizada, uso proibido,
-                combustível errado, danos em pneus ou interior quando
-                excluídos, perda de chaves ou documentos, multas,
-                combustível em falta ou outras exclusões expressamente
-                comunicadas ao cliente.
+                A franquia £0 não abrange conduta intencional ou negligência
+                grave, condução não autorizada, uso proibido, combustível
+                errado, danos em pneus ou interior quando excluídos, perda de
+                chaves ou documentos, multas, combustível em falta ou outras
+                exclusões expressamente comunicadas ao cliente.
               </p>
             </article>
 
@@ -1097,19 +1732,18 @@ export function RentalSheet({
               <h3>8. Entrega e verificação</h3>
               <p>
                 O cliente deve verificar a viatura no momento da entrega.
-                Quilometragem, combustível, estado exterior e interior,
-                riscos, marcas e observações serão registados na secção de
-                entrega deste documento.
+                Quilometragem, combustível, estado exterior e interior, riscos,
+                marcas e observações serão registados na secção de entrega deste
+                documento.
               </p>
             </article>
 
             <article>
               <h3>9. Combustível</h3>
               <p>
-                A viatura deve ser devolvida com o nível de combustível
-                acordado e registado na entrega. A diferença de combustível
-                e os custos razoáveis de reposição poderão ser cobrados ao
-                cliente.
+                A viatura deve ser devolvida com o nível de combustível acordado
+                e registado na entrega. A diferença de combustível e os custos
+                razoáveis de reposição poderão ser cobrados ao cliente.
               </p>
             </article>
 
@@ -1118,14 +1752,14 @@ export function RentalSheet({
               <p>
                 O cliente deve interromper a utilização e contactar
                 imediatamente a 7Go quando surgir aviso de avaria,
-                sobreaquecimento, perda de óleo, problema nos pneus ou
-                qualquer situação que possa agravar danos na viatura.
+                sobreaquecimento, perda de óleo, problema nos pneus ou qualquer
+                situação que possa agravar danos na viatura.
               </p>
 
               <p>
-                Reparações ou substituições apenas podem ser realizadas
-                com autorização prévia da locadora, salvo situação de
-                emergência destinada a evitar perigo imediato.
+                Reparações ou substituições apenas podem ser realizadas com
+                autorização prévia da locadora, salvo situação de emergência
+                destinada a evitar perigo imediato.
               </p>
             </article>
 
@@ -1133,63 +1767,63 @@ export function RentalSheet({
               <h3>11. Acidente, furto ou dano</h3>
               <p>
                 Em caso de acidente, dano, furto ou tentativa de furto, o
-                cliente deve proteger a viatura, contactar a 7Go, recolher
-                dados das pessoas e veículos envolvidos e comunicar a
-                ocorrência às autoridades quando necessário.
+                cliente deve proteger a viatura, contactar a 7Go, recolher dados
+                das pessoas e veículos envolvidos e comunicar a ocorrência às
+                autoridades quando necessário.
               </p>
 
               <p>
-                O cliente não deve assumir responsabilidade, negociar ou
-                pagar indemnizações a terceiros sem autorização da
-                locadora ou da seguradora.
+                O cliente não deve assumir responsabilidade, negociar ou pagar
+                indemnizações a terceiros sem autorização da locadora ou da
+                seguradora.
               </p>
             </article>
 
             <article>
               <h3>12. Multas e infrações</h3>
               <p>
-                O cliente é responsável pelas multas, infrações, despesas
-                e consequências resultantes da sua condução durante o
-                período em que teve a viatura sob sua responsabilidade.
+                O cliente é responsável pelas multas, infrações, despesas e
+                consequências resultantes da sua condução durante o período em
+                que teve a viatura sob sua responsabilidade.
               </p>
             </article>
 
             <article>
               <h3>13. Chaves e documentos</h3>
               <p>
-                A perda, destruição ou não devolução de chaves,
-                documentos, acessórios ou equipamentos da viatura poderá
-                originar a cobrança dos custos de substituição e das
-                despesas diretamente relacionadas.
+                A perda, destruição ou não devolução de chaves, documentos,
+                acessórios ou equipamentos da viatura poderá originar a cobrança
+                dos custos de substituição e das despesas diretamente
+                relacionadas.
               </p>
             </article>
 
             <article>
               <h3>14. Prolongamento do aluguer</h3>
               <p>
-                Qualquer prolongamento depende de pedido e confirmação
-                prévia da 7Go. A permanência com a viatura além da data
-                acordada, sem autorização, constitui incumprimento e pode
-                originar cobrança adicional.
+                Qualquer prolongamento depende de pedido e confirmação prévia da
+                7Go. A permanência com a viatura além da data acordada, sem
+                autorização, constitui incumprimento e pode originar cobrança
+                adicional.
               </p>
             </article>
 
             <article>
               <h3>15. Devolução</h3>
               <p>
-                A viatura deve ser devolvida na data, hora e local
-                acordados, com chaves, documentos e acessórios. O estado
-                de devolução será comparado com o registo da entrega.
+                A viatura deve ser devolvida na data, hora e local acordados,
+                com chaves, documentos e acessórios. O estado de devolução será
+                comparado com o registo da entrega.
               </p>
             </article>
 
             <article>
               <h3>16. Danos e avaliação</h3>
               <p>
-                Novos danos serão descritos no registo de devolução. O
-                valor indicado poderá ser ajustado após orçamento,
-                avaliação técnica ou comunicação da seguradora, sendo o
-                cliente informado do fundamento da cobrança.
+                Novos danos serão descritos no registo de devolução. O valor
+                indicado poderá ser ajustado após orçamento, avaliação técnica
+                ou comunicação da seguradora, sendo o cliente informado do
+                fundamento da cobrança.
               </p>
             </article>
 
@@ -1198,20 +1832,19 @@ export function RentalSheet({
               <p>
                 Cancelamentos, alterações de datas e não comparência serão
                 tratados de acordo com as condições comunicadas na reserva.
-                Valores já pagos poderão ser utilizados para cobrir custos
-                ou perdas diretamente resultantes do cancelamento, quando
-                permitido e previamente informado.
+                Valores já pagos poderão ser utilizados para cobrir custos ou
+                perdas diretamente resultantes do cancelamento, quando permitido
+                e previamente informado.
               </p>
             </article>
 
             <article>
               <h3>18. Dados pessoais</h3>
               <p>
-                Os dados pessoais e documentos do cliente são recolhidos
-                para gerir a reserva, verificar a habilitação para
-                conduzir, cumprir obrigações legais, tratar pagamentos,
-                acidentes, danos, reclamações e comunicações relacionadas
-                com o aluguer.
+                Os dados pessoais e documentos do cliente são recolhidos para
+                gerir a reserva, verificar a habilitação para conduzir, cumprir
+                obrigações legais, tratar pagamentos, acidentes, danos,
+                reclamações e comunicações relacionadas com o aluguer.
               </p>
 
               <p>
@@ -1226,9 +1859,8 @@ export function RentalSheet({
               <p>
                 A locadora pode terminar o aluguer e solicitar a devolução
                 imediata da viatura quando existir utilização proibida,
-                informação falsa, falta de pagamento, risco para a
-                viatura, condução não autorizada ou violação grave deste
-                contrato.
+                informação falsa, falta de pagamento, risco para a viatura,
+                condução não autorizada ou violação grave deste contrato.
               </p>
             </article>
 
@@ -1246,9 +1878,9 @@ export function RentalSheet({
               <h3>21. Integração documental</h3>
               <p>
                 Fazem parte deste contrato os dados da reserva, identificação
-                dos condutores, condições comerciais, registos de entrega
-                e devolução, observações, danos e demais documentos
-                expressamente associados à reserva.
+                dos condutores, condições comerciais, registos de entrega e
+                devolução, observações, danos e demais documentos expressamente
+                associados à reserva.
               </p>
             </article>
           </div>
@@ -1258,25 +1890,22 @@ export function RentalSheet({
           <h2>Declaração de entrega e aceitação</h2>
 
           <p>
-            O cliente declara que recebeu ou receberá a viatura
-            identificada nesta ficha nas condições registadas pela
-            equipa 7Go e confirma que os dados da reserva, modalidade,
-            franquia e caução apresentados neste documento correspondem
-            às condições do aluguer.
+            O cliente declara que recebeu ou receberá a viatura identificada
+            nesta ficha nas condições registadas pela equipa 7Go e confirma que
+            os dados da reserva, modalidade, franquia e caução apresentados
+            neste documento correspondem às condições do aluguer.
           </p>
 
           <p>
-            Na devolução, o estado da viatura poderá ser comparado com
-            o registo de entrega. Quilometragem, combustível,
-            observações e eventuais novos danos serão registados na
-            ficha da reserva.
+            Na devolução, o estado da viatura poderá ser comparado com o registo
+            de entrega. Quilometragem, combustível, observações e eventuais
+            novos danos serão registados na ficha da reserva.
           </p>
 
           <p>
-            O cliente declara que leu e compreendeu as condições gerais,
-            recebeu oportunidade para esclarecer dúvidas e aceita os
-            dados, valores, responsabilidades e registos apresentados
-            neste documento.
+            O cliente declara que leu e compreendeu as condições gerais, recebeu
+            oportunidade para esclarecer dúvidas e aceita os dados, valores,
+            responsabilidades e registos apresentados neste documento.
           </p>
 
           <div className="rental-sheet-acceptance-fields">
@@ -1287,16 +1916,12 @@ export function RentalSheet({
 
             <div>
               <span>Data</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
 
             <div>
               <span>Hora</span>
-              <strong className="rental-sheet-blank-field">
-                &nbsp;
-              </strong>
+              <strong className="rental-sheet-blank-field">&nbsp;</strong>
             </div>
           </div>
         </section>
@@ -1307,8 +1932,7 @@ export function RentalSheet({
             <div className="rental-sheet-signature-line" />
 
             <small>
-              Nome do representante:
-              __________________________________
+              Nome do representante: __________________________________
             </small>
           </div>
 
@@ -1316,10 +1940,7 @@ export function RentalSheet({
             <span>Assinatura do cliente / condutor principal</span>
             <div className="rental-sheet-signature-line" />
 
-            <small>
-              Nome:
-              __________________________________
-            </small>
+            <small>Nome: __________________________________</small>
           </div>
 
           {booking.driverDetails?.secondDriverEnabled && (
@@ -1327,10 +1948,7 @@ export function RentalSheet({
               <span>Assinatura do segundo condutor</span>
               <div className="rental-sheet-signature-line" />
 
-              <small>
-                Nome:
-                __________________________________
-              </small>
+              <small>Nome: __________________________________</small>
             </div>
           )}
         </section>
@@ -1340,8 +1958,8 @@ export function RentalSheet({
           <p>São Tomé e Príncipe</p>
           <small>
             Contrato / ficha operacional associado à reserva{" "}
-            {booking.reference || booking.id}. Documento gerado a
-            partir dos dados registados no sistema 7Go.
+            {booking.reference || booking.id}. Documento gerado a partir dos
+            dados registados no sistema 7Go.
           </small>
         </footer>
       </article>

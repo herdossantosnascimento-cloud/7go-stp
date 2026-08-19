@@ -20689,3 +20689,2594 @@ html:not([data-theme="night"]) .inspection-wizard-final-ready span {
 .admin-staff-delete-button:hover {
   background: rgba(239, 68, 68, 0.18) !important;
 }
+
+/* =========================================================
+   7GO MOBILE HEADER — START
+   ========================================================= */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-header-menu {
+  display: none;
+  position: relative;
+}
+
+.mobile-menu-toggle {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.mobile-menu-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+
+.mobile-menu-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 500;
+  width: min(280px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(4, 12, 7, 0.98);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-menu-panel nav {
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-menu-panel a {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 14px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.mobile-menu-panel a:hover {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green);
+}
+
+@media (max-width: 820px) {
+  .mobile-header-menu {
+    display: block;
+  }
+
+  .header {
+    gap: 12px;
+  }
+
+  .header-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .header {
+    padding: 0 14px;
+  }
+
+  .brand-link {
+    width: 72px;
+  }
+
+  .logo {
+    width: 64px;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .mobile-menu-toggle {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+html:not([data-theme="night"]) .mobile-menu-toggle {
+  border-color: rgba(4, 24, 12, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #06130a;
+}
+
+html:not([data-theme="night"]) .mobile-menu-panel {
+  border-color: rgba(4, 24, 12, 0.12);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+html:not([data-theme="night"]) .mobile-menu-panel a {
+  color: #06130a;
+}
+
+/* =========================================================
+   7GO MOBILE HEADER — END
+   ========================================================= */
+
+/* =========================================================
+   7GO MOBILE MENU VISIBILITY FIX
+   ========================================================= */
+
+@media (max-width: 820px) {
+  .header {
+    position: relative;
+    z-index: 10000;
+    overflow: visible !important;
+  }
+
+  .header-actions {
+    position: relative;
+    z-index: 10001;
+  }
+
+  .mobile-header-menu {
+    position: relative;
+    z-index: 10002;
+  }
+
+  .mobile-menu-panel {
+    position: fixed;
+    top: 76px;
+    right: 14px;
+    z-index: 10050;
+    width: min(290px, calc(100vw - 28px));
+    max-height: calc(100vh - 95px);
+    overflow-y: auto;
+  }
+
+  .mobile-menu-toggle {
+    position: relative;
+    z-index: 10051;
+  }
+}
+
+/* =========================================================
+   7GO AUTH OFFICIAL LOGO
+   ========================================================= */
+
+.customer-auth-brand,
+.staff-login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 74px;
+  padding: 0;
+  background: transparent;
+  text-decoration: none;
+}
+
+.auth-brand-logo {
+  width: 110px;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .auth-brand-logo {
+    width: 96px;
+  }
+}
+
+/* =========================================================
+   7GO AUTH LOGO CONTRAST
+   ========================================================= */
+
+.customer-auth-brand,
+.staff-login-brand,
+.access-hub-brand {
+  display: flex;
+  width: fit-content;
+  min-height: 78px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+}
+
+.auth-brand-logo {
+  display: block;
+  width: 110px;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .customer-auth-brand,
+  .staff-login-brand,
+  .access-hub-brand {
+    min-height: 70px;
+    padding: 6px 12px;
+    border-radius: 14px;
+  }
+
+  .auth-brand-logo {
+    width: 100px;
+  }
+}
+
+/* =========================================================
+   7GO AUTH / ACCESS LIGHT BRAND THEME
+   ========================================================= */
+
+.customer-auth-page,
+.staff-login-page,
+.access-hub-page {
+  background:
+    radial-gradient(circle at top, rgba(34, 197, 94, 0.14), transparent 34%),
+    linear-gradient(180deg, #f8fbf7 0%, #eef6eb 100%) !important;
+  color: #06130a;
+}
+
+.customer-auth-card,
+.staff-login-card,
+.access-hub {
+  border-color: rgba(4, 24, 12, 0.1) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #06130a !important;
+  box-shadow: 0 24px 70px rgba(4, 24, 12, 0.08);
+}
+
+.customer-auth-brand,
+.staff-login-brand,
+.access-hub-brand {
+  min-height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.auth-brand-logo {
+  width: 120px;
+  height: auto;
+}
+
+.customer-auth-card h1,
+.staff-login-card h1,
+.access-hub h1 {
+  color: #06130a !important;
+}
+
+.customer-auth-card p,
+.staff-login-card > p,
+.access-hub > p {
+  color: #64748b !important;
+}
+
+.customer-auth-card label,
+.staff-login-card label {
+  color: #334155 !important;
+}
+
+.customer-auth-card input,
+.staff-login-card input {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.access-hub-card {
+  border-color: rgba(4, 24, 12, 0.1) !important;
+  background: #ffffff !important;
+}
+
+.access-hub-card strong {
+  color: #0f172a !important;
+}
+
+.access-hub-card span {
+  color: #64748b !important;
+}
+
+@media (max-width: 520px) {
+  .customer-auth-page,
+  .staff-login-page,
+  .access-hub-page {
+    padding: 16px;
+  }
+
+  .auth-brand-logo {
+    width: 105px;
+  }
+}
+
+/* =========================================================
+   7GO — MOBILE HOMEPAGE FINAL
+   Somente apresentação mobile.
+   Não altera lógica, Firebase ou reservas.
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* HERO */
+  .hero {
+    min-height: auto;
+    padding: 42px 20px 54px;
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+
+  .hero-copy {
+    max-width: 100%;
+  }
+
+  .hero-copy .eyebrow {
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .hero-copy h1 {
+    max-width: 100%;
+    font-size: clamp(43px, 12vw, 66px);
+    line-height: 0.91;
+    letter-spacing: -2.7px;
+  }
+
+  .hero-copy h1 span {
+    display: block;
+  }
+
+  .hero-desc {
+    max-width: 520px;
+    margin-top: 20px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .hero-actions {
+    margin-top: 27px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .hero-actions a {
+    width: 100%;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .trust-row {
+    margin-top: 22px;
+    gap: 7px;
+  }
+
+  .trust-row span {
+    min-height: 31px;
+    padding: 0 10px;
+    font-size: 8px;
+  }
+
+  /* CARRO PRINCIPAL */
+  .hero-showcase {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .vehicle-stage {
+    min-height: 280px;
+  }
+
+  .vehicle-image {
+    width: 100%;
+  }
+
+  .vehicle-image img {
+    object-fit: contain;
+  }
+
+  .vehicle-meta {
+    gap: 14px;
+  }
+
+  .vehicle-name h2 {
+    font-size: clamp(28px, 9vw, 40px);
+  }
+
+  .vehicle-name p {
+    font-size: 9px;
+    flex-wrap: wrap;
+  }
+
+  .vehicle-price strong {
+    font-size: 26px;
+  }
+
+  .showcase-caption {
+    margin-top: 14px;
+  }
+
+  /* FROTA */
+  .fleet-section {
+    padding: 62px 20px 80px;
+  }
+
+  .fleet-section::before {
+    width: 240px;
+    height: 200px;
+    right: -80px;
+  }
+
+  .section-heading {
+    margin-bottom: 28px;
+  }
+
+  .section-heading p {
+    font-size: 9px;
+    letter-spacing: 2px;
+  }
+
+  .section-heading h2 {
+    margin-top: 10px;
+    font-size: clamp(35px, 10vw, 48px);
+    line-height: 0.98;
+    letter-spacing: -2px;
+  }
+
+  /* UM CARRO POR LINHA */
+  .car-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .car-card {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 24px;
+  }
+
+  .car-card-image {
+    aspect-ratio: 16 / 10;
+    border-radius: 23px 23px 0 0;
+  }
+
+  .car-card-image img {
+    padding: 12px;
+  }
+
+  .car-status {
+    top: 13px;
+    left: 13px;
+    min-height: 31px;
+    font-size: 9px;
+  }
+
+  .car-card-content {
+    padding: 20px;
+  }
+
+  .car-card-heading {
+    min-height: 0;
+    gap: 12px;
+  }
+
+  .car-card-content h3 {
+    font-size: clamp(27px, 8vw, 34px);
+  }
+
+  .car-card-content p {
+    font-size: 10px;
+  }
+
+  .car-price {
+    padding: 7px 9px;
+  }
+
+  .car-price strong {
+    font-size: 24px;
+  }
+
+  .car-price span {
+    font-size: 10px;
+  }
+
+  .car-specs {
+    margin-top: 18px;
+    padding: 14px 0;
+    gap: 6px;
+  }
+
+  .car-specs span {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 9px;
+  }
+
+  .car-card-action {
+    min-height: 61px;
+    border-radius: 17px;
+  }
+
+  .car-card-action-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(40px, 13vw, 54px);
+  }
+
+  .vehicle-stage {
+    min-height: 235px;
+  }
+
+  .vehicle-meta {
+    align-items: flex-end;
+  }
+
+  .fleet-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .car-card-content {
+    padding: 17px;
+  }
+
+  .car-card-heading {
+    align-items: flex-start;
+  }
+
+  .car-price strong {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   7GO — MOBILE CAR DETAIL / BOOKING
+   Apenas apresentação mobile
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* PÁGINA DO CARRO */
+  .car-detail {
+    padding: 28px 18px 70px;
+  }
+
+  .detail-back {
+    margin-bottom: 24px;
+  }
+
+  .car-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .car-detail-sticky {
+    position: relative;
+    top: auto;
+  }
+
+  /* IMAGEM */
+  .car-detail-media {
+    width: 100%;
+    min-width: 0;
+    border-radius: 24px;
+    overflow: hidden;
+  }
+
+  .car-detail-media img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  /* INFORMAÇÃO DO CARRO */
+  .car-detail-info {
+    min-width: 0;
+  }
+
+  .car-detail-info .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1.7px;
+  }
+
+  .car-detail-info h1 {
+    font-size: clamp(38px, 11vw, 56px);
+    line-height: 0.94;
+    letter-spacing: -2.5px;
+  }
+
+  .detail-desc {
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .detail-price {
+    margin-top: 22px;
+  }
+
+  .detail-price strong {
+    font-size: 30px;
+  }
+
+  .detail-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .detail-specs span {
+    min-height: 34px;
+    padding: 0 11px;
+    font-size: 9px;
+  }
+
+  /* FORMULÁRIO */
+  .availability-box {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 24px;
+  }
+
+  .availability-ui-header {
+    padding: 23px 18px 21px;
+  }
+
+  .availability-ui-header h2 {
+    font-size: 28px;
+    line-height: 1.03;
+  }
+
+  .availability-ui-section {
+    padding: 22px 18px;
+  }
+
+  .availability-ui-section-heading {
+    margin-bottom: 17px;
+  }
+
+  .availability-fields,
+  .booking-summary,
+  .availability-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .availability-fields input,
+  .availability-fields select,
+  .availability-mode-field select {
+    width: 100%;
+    min-width: 0;
+    min-height: 55px;
+    font-size: 16px;
+  }
+
+  /* Evita zoom automático do iPhone nos inputs */
+  .availability-fields input,
+  .availability-fields select,
+  .availability-mode-field select {
+    font-size: 16px;
+  }
+
+  /* PROTEÇÃO NORMAL / PREMIUM */
+  .rental-protection {
+    padding: 17px;
+    border-radius: 18px;
+  }
+
+  .rental-protection-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .rental-protection-top > strong {
+    font-size: 19px;
+    white-space: normal;
+  }
+
+  /* RESUMO */
+  .booking-summary {
+    gap: 9px;
+  }
+
+  .booking-summary div,
+  .booking-summary div:nth-child(3) {
+    grid-column: auto;
+    min-height: 78px;
+    padding: 15px;
+  }
+
+  .booking-summary div:nth-child(3) strong {
+    font-size: 27px;
+  }
+
+  /* BOTÕES */
+  .availability-ui-action-zone {
+    padding: 22px 18px 24px;
+  }
+
+  .check-availability-button,
+  .availability-box .availability-actions button,
+  .availability-actions a {
+    width: 100%;
+    min-height: 56px;
+  }
+
+  .availability-actions {
+    gap: 9px;
+  }
+
+  .availability-ui-legal-note {
+    font-size: 10px;
+    line-height: 1.55;
+  }
+}
+
+@media (max-width: 480px) {
+  .car-detail {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .car-detail-info h1 {
+    font-size: clamp(36px, 11vw, 48px);
+  }
+
+  .availability-box {
+    border-radius: 21px;
+  }
+
+  .availability-ui-header,
+  .availability-ui-section,
+  .availability-ui-action-zone {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* =========================================================
+   7GO — MOBILE MINHA RESERVA FINAL
+   Apenas apresentação mobile.
+   Não altera pesquisa, Firestore ou lógica da reserva.
+   ========================================================= */
+
+@media (max-width: 620px) {
+  .my-booking-page {
+    min-height: auto;
+    padding: 42px 16px 75px;
+  }
+
+  .my-booking-page > .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1.8px;
+  }
+
+  .my-booking-page h1 {
+    max-width: 100%;
+    margin: 15px 0 14px;
+    font-size: clamp(38px, 11vw, 52px);
+    line-height: 0.95;
+    letter-spacing: -2px;
+  }
+
+  .my-booking-page > p:not(.eyebrow) {
+    max-width: 100%;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .my-booking-card {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 27px;
+    border-radius: 23px;
+  }
+
+  .my-booking-search-header {
+    padding: 21px 17px 19px;
+    gap: 12px;
+  }
+
+  .my-booking-search-icon {
+    width: 43px;
+    height: 43px;
+    border-radius: 13px;
+  }
+
+  .my-booking-search-header h2 {
+    font-size: 23px;
+  }
+
+  .my-booking-search-header p {
+    font-size: 11px;
+  }
+
+  .my-booking-search-field {
+    padding: 20px 17px 0;
+  }
+
+  .my-booking-card .my-booking-search-field input {
+    min-height: 56px;
+    font-size: 16px;
+  }
+
+  .my-booking-card > .my-booking-search-button {
+    width: calc(100% - 34px);
+    min-height: 56px;
+    margin: 12px 17px 20px;
+  }
+
+  .my-booking-error {
+    margin: -5px 17px 20px !important;
+  }
+
+  .my-booking-result-header {
+    padding: 21px 17px;
+    gap: 12px;
+  }
+
+  .my-booking-result-header > div:first-child strong {
+    font-size: 19px;
+    overflow-wrap: anywhere;
+  }
+
+  .my-booking-status {
+    min-height: 34px;
+    font-size: 9px;
+  }
+
+  .my-booking-result-section {
+    padding: 21px 17px;
+  }
+
+  .my-booking-result-title {
+    margin-bottom: 15px;
+  }
+
+  .my-booking-result-grid,
+  .my-booking-financial-grid,
+  .my-booking-operation-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .my-booking-result-grid > div,
+  .my-booking-financial-grid > div,
+  .my-booking-operation-grid > div {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .my-booking-total {
+    grid-column: auto;
+    min-height: 82px;
+  }
+
+  .my-booking-total strong {
+    font-size: 25px;
+  }
+
+  .my-booking-whatsapp {
+    width: calc(100% - 34px);
+    min-height: 68px;
+    margin: 0 17px 20px !important;
+    padding: 10px 12px 10px 15px !important;
+  }
+
+  .my-booking-whatsapp strong {
+    font-size: 12px;
+  }
+}
+
+/* =========================================================
+   7GO — MOBILE CUSTOMER ACCOUNT FINAL
+   Minha Conta / Perfil / Reservas / Documentos / Pagamentos
+   Apenas apresentação mobile.
+   ========================================================= */
+
+@media (max-width: 720px) {
+  /* BASE */
+  .customer-account-page {
+    min-height: 100vh;
+    padding: 24px 16px 70px;
+  }
+
+  /* CABEÇALHO */
+  .customer-account-header,
+  .customer-bookings-header {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .customer-account-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .customer-account-header h1,
+  .customer-bookings-header h1 {
+    font-size: clamp(30px, 9vw, 40px);
+    line-height: 1;
+    letter-spacing: -1.5px;
+  }
+
+  .customer-account-header p,
+  .customer-bookings-header p {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .customer-account-header button {
+    width: 100%;
+    min-height: 50px;
+  }
+
+  .customer-account-home-link {
+    min-height: 42px;
+    padding: 9px 13px;
+  }
+
+  /* AVISO */
+  .customer-account-warning {
+    width: 100%;
+    margin-bottom: 18px;
+    padding: 14px;
+    border-radius: 14px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* MENU MINHA CONTA */
+  .customer-account-grid {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .customer-account-grid > * {
+    min-height: 88px;
+    padding: 18px;
+    border-radius: 17px;
+  }
+
+  .customer-account-grid strong {
+    font-size: 16px;
+  }
+
+  .customer-account-grid span {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* RESERVAS / DOCUMENTOS / PAGAMENTOS */
+  .customer-bookings-grid {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .customer-booking-card {
+    width: 100%;
+    min-width: 0;
+    padding: 17px;
+    border-radius: 18px;
+    gap: 15px;
+  }
+
+  .customer-booking-card header {
+    gap: 10px;
+  }
+
+  .customer-booking-card h2 {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  .customer-booking-card header > strong {
+    flex-shrink: 0;
+  }
+
+  .customer-booking-info {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .customer-booking-info > div {
+    min-height: 63px;
+    padding: 13px;
+    border-radius: 12px;
+  }
+
+  .customer-booking-info span {
+    font-size: 9px;
+  }
+
+  .customer-booking-info strong {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .customer-booking-card > a,
+  .customer-document-pdf-button {
+    width: 100%;
+    min-height: 50px;
+    font-size: 10px;
+  }
+
+  /* ESTADO VAZIO */
+  .customer-bookings-empty {
+    width: 100%;
+    min-height: 230px;
+    padding: 24px 18px;
+    border-radius: 18px;
+  }
+
+  /* PERFIL */
+  .customer-profile-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 18px;
+    border-radius: 19px;
+    gap: 16px;
+  }
+
+  .customer-profile-status {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .customer-profile-status > div {
+    padding: 14px;
+    border-radius: 13px;
+  }
+
+  .customer-profile-status span {
+    font-size: 9px;
+  }
+
+  .customer-profile-status strong {
+    font-size: 11px;
+  }
+
+  .customer-profile-verification {
+    width: 100%;
+    min-height: 49px;
+  }
+
+  .customer-profile-form {
+    gap: 13px;
+  }
+
+  .customer-profile-form label {
+    font-size: 11px;
+  }
+
+  .customer-profile-form input {
+    width: 100%;
+    min-width: 0;
+    min-height: 54px;
+    font-size: 16px;
+  }
+
+  .customer-profile-form > button {
+    width: 100%;
+    min-height: 54px;
+  }
+
+  .customer-profile-logout {
+    width: 100%;
+    min-height: 50px;
+  }
+}
+
+@media (max-width: 420px) {
+  .customer-account-page {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .customer-booking-card {
+    padding: 15px;
+  }
+
+  .customer-booking-card header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .customer-booking-card header > strong {
+    width: fit-content;
+  }
+
+  .customer-profile-card {
+    padding: 16px;
+  }
+}
+
+/* =========================================================
+   7GO — STAFF MOBILE FINAL
+   Apenas apresentação mobile
+   Não altera lógica operacional
+   ========================================================= */
+
+@media (max-width: 800px) {
+  /* ÁREA PRINCIPAL */
+  .staff-dashboard-shell {
+    min-height: 100vh;
+    padding: 20px 15px 70px;
+  }
+
+  /* CABEÇALHO */
+  .staff-dashboard-header {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 20px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .staff-dashboard-header h1 {
+    margin: 5px 0;
+    font-size: clamp(28px, 8vw, 38px);
+    line-height: 1;
+  }
+
+  .staff-dashboard-header p {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .staff-dashboard-header button {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+  }
+
+  /* TABS DO PORTAL STAFF */
+  .staff-dashboard-shell .admin-dashboard-tabs-list {
+    width: 100%;
+    display: flex;
+    gap: 7px;
+    padding-bottom: 5px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .staff-dashboard-shell .admin-dashboard-tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .staff-dashboard-shell .admin-dashboard-tab-trigger {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 9px 13px;
+    white-space: nowrap;
+  }
+
+  .staff-dashboard-shell .admin-dashboard-tab-content {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* VIATURAS */
+  .staff-vehicles {
+    width: 100%;
+    gap: 16px;
+  }
+
+  .staff-vehicles-heading h2 {
+    font-size: 24px;
+    line-height: 1.05;
+  }
+
+  .staff-vehicles-heading p {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .staff-vehicles-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .staff-vehicle-card {
+    width: 100%;
+    min-width: 0;
+    padding: 15px;
+    border-radius: 17px;
+  }
+
+  .staff-vehicle-card header {
+    gap: 10px;
+  }
+
+  .staff-vehicle-card h3 {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .staff-vehicle-card header > strong,
+  .staff-vehicle-status {
+    flex-shrink: 0;
+  }
+
+  /* DADOS DA VIATURA */
+  .staff-vehicle-facts {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .staff-vehicle-facts > div {
+    min-height: 57px;
+    padding: 11px;
+    border-radius: 11px;
+  }
+
+  .staff-vehicle-facts span {
+    font-size: 9px;
+  }
+
+  .staff-vehicle-facts strong {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  /* RESERVA ASSOCIADA */
+  .staff-vehicle-booking {
+    padding-top: 12px;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .staff-vehicle-booking strong {
+    overflow-wrap: anywhere;
+  }
+
+  /* ESTADOS / ALERTAS */
+  .staff-vehicle-status {
+    min-height: 30px;
+    padding: 6px 9px !important;
+    font-size: 9px !important;
+  }
+
+  .staff-vehicle-inspection-status,
+  .staff-vehicle-damage {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  /* MFA / TOTP */
+  .totp-setup-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 15px;
+    border-radius: 16px;
+  }
+
+  .totp-setup-card button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .totp-enrollment {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .totp-enrollment input {
+    width: 100%;
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 430px) {
+  .staff-dashboard-shell {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+
+  .staff-vehicle-card header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .staff-vehicle-card header > strong,
+  .staff-vehicle-status {
+    width: fit-content;
+  }
+
+  .staff-vehicle-card {
+    padding: 14px;
+  }
+}
+
+/* =========================================================
+   7GO — ADMIN MOBILE STRUCTURAL FIX V1
+   Corrige overflow, sobreposição e largura.
+   Apenas apresentação mobile.
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* =====================================================
+     PROTEÇÃO GLOBAL DO ADMIN
+     ===================================================== */
+
+  .admin-dashboard,
+  .admin-dashboard-shell,
+  .admin-dashboard-content,
+  .admin-dashboard-tab-content,
+  .admin-bookings,
+  .admin-bookings-list,
+  .admin-overview,
+  .admin-fleet,
+  .admin-financial-dashboard,
+  .admin-staff-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .admin-dashboard *,
+  .admin-dashboard-shell *,
+  .admin-dashboard-content *,
+  .admin-dashboard-tab-content * {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  /* Evita textos a entrar uns nos outros */
+
+  .admin-dashboard h1,
+  .admin-dashboard h2,
+  .admin-dashboard h3,
+  .admin-dashboard h4,
+  .admin-dashboard strong,
+  .admin-dashboard span,
+  .admin-dashboard p,
+  .admin-dashboard small,
+  .admin-dashboard label,
+  .admin-dashboard-shell h1,
+  .admin-dashboard-shell h2,
+  .admin-dashboard-shell h3,
+  .admin-dashboard-shell strong,
+  .admin-dashboard-shell span,
+  .admin-dashboard-shell p {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  /* =====================================================
+     CONTAINER
+     ===================================================== */
+
+  .admin-dashboard-shell,
+  .admin-dashboard {
+    overflow-x: hidden;
+  }
+
+  .admin-dashboard-shell {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  /* =====================================================
+     HEADER
+     ===================================================== */
+
+  .admin-dashboard-header {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .admin-dashboard-header > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-dashboard-header h1 {
+    max-width: 100%;
+    font-size: clamp(27px, 8vw, 38px);
+    line-height: 1.05;
+  }
+
+  .admin-dashboard-header p {
+    max-width: 100%;
+    line-height: 1.5;
+  }
+
+  .admin-dashboard-header button,
+  .admin-dashboard-header a {
+    max-width: 100%;
+  }
+
+  /* =====================================================
+     TABS
+     Em vez de esmagar todas no ecrã, deslizam lateralmente
+     ===================================================== */
+
+  .admin-dashboard-tabs-list {
+    display: flex !important;
+    width: 100%;
+    max-width: 100%;
+    gap: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 7px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-dashboard-tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-dashboard-tab-trigger {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    white-space: nowrap;
+  }
+
+  /* =====================================================
+     CARDS / PAINÉIS
+     ===================================================== */
+
+  .admin-booking-card,
+  .admin-overview-card,
+  .admin-financial-card,
+  .admin-fleet-card,
+  .admin-staff-card,
+  .admin-inspection-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* =====================================================
+     GRIDS
+     ===================================================== */
+
+  .admin-overview-grid,
+  .admin-bookings-grid,
+  .admin-financial-grid,
+  .admin-fleet-grid,
+  .admin-staff-form,
+  .admin-staff-edit-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* =====================================================
+     STAFF ADMIN
+     ===================================================== */
+
+  .admin-staff-form {
+    padding: 14px;
+  }
+
+  .admin-staff-form input,
+  .admin-staff-edit-form input,
+  .admin-staff-form select,
+  .admin-staff-edit-form select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-staff-form button {
+    width: 100%;
+  }
+
+  .admin-staff-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-staff-card > div {
+    width: 100%;
+  }
+
+  .admin-staff-actions,
+  .admin-staff-edit-actions {
+    display: flex !important;
+    width: 100%;
+    flex-wrap: wrap;
+    grid-auto-flow: unset;
+  }
+
+  .admin-staff-actions button,
+  .admin-staff-edit-actions button {
+    flex: 1 1 120px;
+    min-height: 44px;
+  }
+
+  /* =====================================================
+     FORMULÁRIOS
+     ===================================================== */
+
+  .admin-dashboard input,
+  .admin-dashboard select,
+  .admin-dashboard textarea,
+  .admin-dashboard-shell input,
+  .admin-dashboard-shell select,
+  .admin-dashboard-shell textarea {
+    max-width: 100%;
+  }
+
+  /* =====================================================
+     INSPEÇÃO
+     ===================================================== */
+
+  .admin-vehicle-inspection {
+    width: 100%;
+    max-width: 100%;
+    padding: 14px !important;
+  }
+
+  .admin-vehicle-inspection > label,
+  .admin-inspection-photos,
+  .admin-inspection-signatures,
+  .admin-premium-cleaning-section,
+  .admin-deposit-box,
+  .admin-fuel-warning {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-inspection-progress-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-inspection-progress-items {
+    width: 100%;
+  }
+
+  /* =====================================================
+     FOTOS / ASSINATURAS
+     ===================================================== */
+
+  .admin-inspection-photos,
+  .admin-inspection-signatures {
+    padding: 14px !important;
+  }
+
+  .admin-inspection-photo {
+    max-width: 100%;
+  }
+
+  .admin-inspection-photo img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* =====================================================
+     BOTÕES
+     ===================================================== */
+
+  .admin-dashboard button,
+  .admin-dashboard-shell button {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-dashboard-shell {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+
+  .admin-staff-actions,
+  .admin-staff-edit-actions {
+    flex-direction: column;
+  }
+
+  .admin-staff-actions button,
+  .admin-staff-edit-actions button {
+    width: 100%;
+    flex: none;
+  }
+
+  .admin-inspection-panel > summary {
+    align-items: flex-start;
+  }
+}
+
+/* =========================================================
+   7GO — ADMIN MOBILE RESERVAS / DASHBOARD FINAL
+   Apenas apresentação mobile.
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* RESERVA PRINCIPAL:
+     carro + dados + financeiro passam para vertical */
+  .admin-reservation-hero {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 19px;
+  }
+
+  /* CARRO */
+  .admin-reservation-car {
+    width: 100%;
+    min-width: 0;
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .admin-reservation-car-image {
+    min-height: 190px;
+  }
+
+  .admin-reservation-car-image img {
+    width: 100%;
+    min-height: 190px;
+    max-height: 250px;
+    padding: 14px;
+    object-fit: contain;
+  }
+
+  .admin-reservation-car-caption {
+    padding: 0 17px 17px;
+  }
+
+  .admin-reservation-car-caption strong {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  /* DADOS DA RESERVA */
+  .admin-reservation-information {
+    width: 100%;
+    min-width: 0;
+    padding: 19px 17px;
+  }
+
+  .admin-reservation-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .admin-reservation-heading h2 {
+    width: 100%;
+    font-size: 23px !important;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-reservation-status {
+    width: fit-content;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .admin-reservation-data-grid {
+    grid-template-columns: 1fr !important;
+    gap: 15px;
+  }
+
+  .admin-reservation-period {
+    grid-column: auto !important;
+  }
+
+  .admin-reservation-data-grid strong {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  /* AÇÕES DA RESERVA */
+  .admin-reservation-information .admin-booking-actions {
+    width: 100%;
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-reservation-information .admin-booking-actions a,
+  .admin-reservation-information .admin-booking-actions button {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* FINANCEIRO */
+  .admin-reservation-finance {
+    width: 100%;
+    min-width: 0;
+    padding: 17px;
+    border-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .admin-reservation-finance-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-reservation-finance-card strong {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-financial-overview,
+  .admin-financial-fields {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ENTREGA / DEVOLUÇÃO */
+  .admin-vehicle-inspections {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .admin-inspection-panel,
+  .admin-inspection-panel[open] {
+    grid-column: auto !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-inspection-panel > summary {
+    width: 100%;
+    min-width: 0;
+    padding: 14px !important;
+  }
+
+  /* A grelha de 12 colunas deixa de existir no telefone */
+  .admin-vehicle-inspection {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 14px !important;
+  }
+
+  .admin-vehicle-inspection > *,
+  .admin-vehicle-inspection > label,
+  .admin-vehicle-inspection > .admin-deposit-box,
+  .admin-vehicle-inspection > .admin-fuel-warning,
+  .admin-vehicle-inspection > .admin-damage-check,
+  .admin-vehicle-inspection > .admin-inspection-photos,
+  .admin-vehicle-inspection > .admin-inspection-signatures,
+  .admin-vehicle-inspection > button:last-child {
+    grid-column: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* FOTOS */
+  .admin-inspection-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+  }
+
+  .admin-inspection-photo {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* ASSINATURAS */
+  .admin-signature-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .signature-pad {
+    width: 100%;
+    min-width: 0;
+    padding: 13px !important;
+  }
+
+  .signature-canvas {
+    width: 100% !important;
+    max-width: 100%;
+    height: 190px !important;
+  }
+
+  /* CONTROLOS */
+  .admin-driver-controls,
+  .admin-financial-controls {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-driver-controls {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* FROTA ADMIN */
+  .fleet-ui-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .fleet-ui-sync {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .fleet-ui-primary-button,
+  .fleet-ui-save-button {
+    width: 100%;
+  }
+
+  .fleet-ui-car-header {
+    flex-direction: column;
+    padding: 17px;
+    gap: 13px;
+  }
+
+  .fleet-ui-car-identity {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fleet-ui-car-identity > div {
+    min-width: 0;
+  }
+
+  .fleet-ui-car-identity h3,
+  .fleet-ui-car-identity p {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 460px) {
+  .admin-inspection-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-reservation-car-image,
+  .admin-reservation-car-image img {
+    min-height: 165px;
+  }
+
+  .admin-reservation-information,
+  .admin-reservation-finance {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .admin-reservation-heading h2 {
+    font-size: 21px !important;
+  }
+}
+
+/* =========================================================
+   7GO — ADMIN FINANCE MOBILE FINAL
+   Apenas layout mobile
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* BASE */
+  .admin-financial-reports,
+  .admin-financial-report-preview,
+  .admin-financial-closing-history {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* HEADER */
+  .admin-financial-reports-header {
+    width: 100%;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 15px;
+  }
+
+  .admin-financial-reports-header > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-financial-reports-header h2 {
+    font-size: clamp(25px, 7vw, 34px);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-financial-reports-header p {
+    line-height: 1.5;
+  }
+
+  .admin-financial-reports-header > svg {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 10px;
+  }
+
+  /* CONTROLOS */
+  .admin-financial-reports-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .admin-financial-reports-controls label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-financial-reports-controls select,
+  .admin-financial-reports-controls button {
+    width: 100%;
+    max-width: 100%;
+    min-height: 46px;
+  }
+
+  /* PREVIEW */
+  .admin-financial-report-preview {
+    padding: 17px 13px;
+  }
+
+  .admin-financial-report-title {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .admin-financial-report-title > div {
+    min-width: 0;
+  }
+
+  .admin-financial-report-title h3 {
+    font-size: 21px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-financial-report-title > svg {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+
+  /* KPIs */
+  .admin-financial-report-kpis,
+  .admin-financial-report-details,
+  .admin-executive-summary-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .admin-financial-report-kpis article,
+  .admin-financial-report-details article,
+  .admin-executive-summary-kpis article {
+    min-width: 0;
+  }
+
+  .admin-financial-report-kpis strong,
+  .admin-financial-report-details strong,
+  .admin-executive-summary-kpis strong {
+    overflow-wrap: anywhere;
+  }
+
+  /* RELATÓRIO PRINCIPAL */
+  .admin-financial-report-grid {
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-financial-report-grid > section {
+    width: 100%;
+    min-width: 0;
+    padding: 14px;
+  }
+
+  /*
+     A tabela financeira mantém as colunas.
+     No telefone desliza horizontalmente em vez
+     de esmagar números e texto.
+  */
+  .admin-financial-report-grid > section:first-child {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-financial-report-table {
+    min-width: 620px;
+  }
+
+  /* DESPESAS */
+  .admin-financial-report-expenses article {
+    min-width: 0;
+  }
+
+  .admin-financial-report-expenses article > span {
+    min-width: 0;
+  }
+
+  .admin-financial-report-expenses strong,
+  .admin-financial-report-expenses small {
+    overflow-wrap: anywhere;
+  }
+
+  /* ESTADO DE FECHO */
+  .admin-financial-closing-status {
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .admin-financial-closing-status > span {
+    min-width: 0;
+  }
+
+  .admin-financial-closing-status strong,
+  .admin-financial-closing-status p {
+    overflow-wrap: anywhere;
+  }
+
+  /* HISTÓRICO */
+  .admin-financial-closing-history {
+    padding: 16px 13px;
+  }
+
+  .admin-financial-closing-history-heading {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .admin-financial-closing-history-heading > div {
+    min-width: 0;
+  }
+
+  .admin-financial-closing-history-heading h3,
+  .admin-financial-closing-history-heading p {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-financial-closing-history-heading > svg {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .admin-financial-closing-history-list > article {
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+    width: 100%;
+    min-width: 0;
+    gap: 9px;
+  }
+
+  .admin-financial-closing-history-list > article > span {
+    min-width: 0;
+  }
+
+  .admin-financial-closing-history-list > article > span:nth-child(n + 3),
+  .admin-financial-closing-history-list > article > button {
+    grid-column: 2 !important;
+  }
+
+  .admin-financial-closing-history-list strong,
+  .admin-financial-closing-history-list p {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-financial-closing-history-list button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  /* MODAL DE PAGAMENTO */
+  .payment-method-modal-backdrop {
+    padding: 12px;
+  }
+
+  .payment-method-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    border-radius: 18px;
+  }
+
+  .payment-method-modal-header {
+    padding: 17px 15px 13px;
+  }
+
+  .payment-method-modal-header > div {
+    min-width: 0;
+  }
+
+  .payment-method-modal-header h3 {
+    font-size: 21px;
+    overflow-wrap: anywhere;
+  }
+
+  .payment-method-options {
+    padding: 0 15px;
+  }
+
+  .payment-method-option {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 12px;
+  }
+
+  .payment-method-option-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .payment-method-option > span {
+    min-width: 0;
+  }
+
+  .payment-method-option p,
+  .payment-method-option > span > strong {
+    overflow-wrap: anywhere;
+  }
+
+  .payment-method-security {
+    margin-left: 15px;
+    margin-right: 15px;
+  }
+
+  .payment-method-security > span {
+    min-width: 0;
+  }
+
+  .payment-method-modal-footer {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-financial-report-kpis,
+  .admin-financial-report-details,
+  .admin-executive-summary-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-financial-reports {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .admin-financial-report-title {
+    flex-direction: column;
+  }
+
+  .admin-financial-report-title > svg {
+    order: -1;
+  }
+
+  .admin-financial-closing-history-heading {
+    flex-direction: column;
+  }
+
+  .admin-financial-closing-history-heading > svg {
+    order: -1;
+  }
+
+  .payment-method-option {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .payment-method-option > strong {
+    grid-column: 2;
+    white-space: normal;
+  }
+
+  .payment-method-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payment-method-modal-footer button {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   7GO MOBILE — ENTREGA / DEVOLUÇÃO
+   Não altera lógica. Apenas apresentação.
+   ========================================================= */
+
+@media (max-width: 820px) {
+  /* Área lateral da reserva deixa de funcionar como sidebar */
+  .admin-booking-side {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    padding: 16px !important;
+  }
+
+  /* Container Entrega / Devolução */
+  .admin-booking-side .admin-vehicle-inspections {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 4px 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Cada operação ocupa largura total */
+  .admin-booking-side .admin-inspection-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-column: 1 !important;
+    border-radius: 17px !important;
+  }
+
+  /* Cabeçalho clicável */
+  .admin-booking-side .admin-inspection-panel > summary {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 66px !important;
+    padding: 13px !important;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0, 1fr) !important;
+    align-items: center !important;
+    justify-content: initial !important;
+    gap: 10px !important;
+  }
+
+  .admin-booking-side .admin-inspection-panel > summary::before {
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 !important;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .admin-booking-side .admin-inspection-panel > summary > span:first-of-type {
+    grid-column: 2;
+    min-width: 0;
+    font-size: 14px !important;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-booking-side .admin-inspection-panel > summary small {
+    grid-column: 2;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 5px 8px !important;
+    white-space: normal;
+  }
+
+  /* Conteúdo aberto */
+  .admin-booking-side .admin-inspection-panel .admin-vehicle-inspection {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: 1fr !important;
+    padding: 13px !important;
+    gap: 11px !important;
+  }
+
+  .admin-booking-side .admin-inspection-panel .admin-vehicle-inspection > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-column: 1 !important;
+    box-sizing: border-box;
+  }
+
+  /* Botão principal do processo guiado */
+  .admin-open-inspection-wizard {
+    width: 100% !important;
+    min-height: 52px !important;
+    padding: 12px 14px !important;
+    white-space: normal !important;
+    text-align: center;
+  }
+
+  /* Progresso */
+  .admin-inspection-progress {
+    width: 100%;
+    max-width: 100%;
+    padding: 13px !important;
+  }
+
+  .admin-inspection-progress-heading {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start !important;
+    gap: 8px !important;
+  }
+
+  .admin-inspection-progress-heading > div {
+    min-width: 0;
+  }
+
+  .admin-inspection-progress-heading strong {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-inspection-progress-items {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px !important;
+  }
+
+  .admin-inspection-progress-item {
+    width: 100%;
+    min-width: 0;
+    border-radius: 10px !important;
+  }
+
+  .admin-inspection-progress-item span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Fotos */
+  .admin-inspection-photo-grid {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Assinaturas */
+  .admin-signature-grid {
+    width: 100%;
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Seletor de estado depois das inspeções */
+  .admin-booking-side > select {
+    width: 100% !important;
+    max-width: 100%;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 460px) {
+  .admin-inspection-progress-items {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-inspection-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ==========================================================
+   7GO ADMIN — CALENDÁRIO MOBILE
+   Apenas apresentação.
+   Não altera reservas, filtros, Firestore ou lógica.
+   ========================================================== */
+
+@media (max-width: 600px) {
+  .fleet-calendar {
+    width: 100%;
+    min-width: 0;
+    padding: 16px 0;
+    overflow: hidden;
+  }
+
+  .fleet-calendar-header {
+    width: 100%;
+    gap: 18px;
+  }
+
+  .fleet-calendar-header h2 {
+    font-size: 30px;
+    line-height: 1.05;
+    letter-spacing: -1px;
+  }
+
+  .fleet-calendar-header p {
+    max-width: 100%;
+    line-height: 1.5;
+  }
+
+  .fleet-calendar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .fleet-calendar-today,
+  .fleet-calendar-navigation,
+  .fleet-calendar-view-switch {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fleet-calendar-today {
+    justify-content: center;
+  }
+
+  .fleet-calendar-navigation {
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+  }
+
+  .fleet-calendar-navigation button {
+    width: 48px;
+  }
+
+  .fleet-calendar-navigation strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fleet-calendar-view-switch button {
+    flex: 1 1 0;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .fleet-calendar-summary {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 12px;
+  }
+
+  .fleet-calendar-summary > div {
+    min-width: 0;
+  }
+
+  .fleet-calendar-summary-divider {
+    display: none;
+  }
+
+  .fleet-calendar-shell {
+    width: 100%;
+    min-width: 0;
+    min-height: 360px;
+    border-radius: 14px;
+  }
+
+  .fleet-calendar-scroll {
+    width: 100%;
+    max-width: 100%;
+    max-height: 560px;
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .fleet-calendar-corner {
+    min-height: 60px;
+    padding: 0 10px;
+    font-size: 8px;
+  }
+
+  .fleet-calendar-day-header {
+    min-height: 60px;
+  }
+
+  .fleet-calendar-day-header small {
+    font-size: 7px;
+  }
+
+  .fleet-calendar-day-header strong {
+    width: 27px;
+    height: 27px;
+    font-size: 10px;
+  }
+
+  .fleet-calendar-car {
+    min-height: 62px;
+    padding: 8px 9px;
+    gap: 6px;
+  }
+
+  .fleet-calendar-car strong {
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .fleet-calendar-car small {
+    font-size: 8px;
+  }
+
+  .fleet-calendar-timeline,
+  .fleet-calendar-cell {
+    min-height: 62px;
+  }
+
+  .fleet-calendar-booking {
+    height: 34px;
+    margin: 3px 2px;
+    padding: 5px 6px;
+    border-radius: 8px;
+  }
+
+  .fleet-calendar-booking strong {
+    font-size: 8px;
+  }
+
+  .fleet-calendar-booking small {
+    font-size: 7px;
+  }
+
+  .fleet-calendar-legend {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .fleet-calendar-legend button {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .fleet-calendar-booking-tooltip {
+    width: min(220px, calc(100vw - 40px));
+  }
+}
+
+@media (max-width: 380px) {
+  .fleet-calendar-header h2 {
+    font-size: 27px;
+  }
+
+  .fleet-calendar-legend {
+    grid-template-columns: 1fr;
+  }
+}

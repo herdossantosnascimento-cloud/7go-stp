@@ -2,6 +2,7 @@ import Image from "next/image";
 import { brand } from "@/config/brand";
 import { PublicHomeFleet } from "@/components/fleet/PublicHomeFleet";
 import { HomeAuthNav } from "@/components/auth/HomeAuthNav";
+import { MobileHeaderMenu } from "@/components/mobile/MobileHeaderMenu";
 
 export default function Home() {
   return (
@@ -28,7 +29,10 @@ export default function Home() {
           <a href="#contacto">Contacto</a>
         </nav>
 
-        <HomeAuthNav />
+        <div className="header-actions">
+          <HomeAuthNav />
+          <MobileHeaderMenu />
+        </div>
       </header>
 
       <PublicHomeFleet />

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -106,8 +108,15 @@ export default function StaffLoginPage() {
   return (
     <main className="staff-login-page">
       <section className="staff-login-card">
-        <Link href="/" className="staff-login-brand">
-          7GO
+        <Link href="/" className="staff-login-brand" aria-label="7Go STP">
+          <Image
+            src="/images/7go-logo-final.png"
+            alt="7Go STP"
+            width={120}
+            height={90}
+            priority
+            className="auth-brand-logo"
+          />
         </Link>
 
         <span className="staff-login-kicker">Área do funcionário</span>

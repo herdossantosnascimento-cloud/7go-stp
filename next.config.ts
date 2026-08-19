@@ -26,6 +26,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
+  allowedDevOrigins: ["192.168.0.167"],
+
   experimental: {
     instantInsights: {
       validationLevel: "manual-warning",

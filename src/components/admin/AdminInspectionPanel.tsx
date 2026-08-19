@@ -847,10 +847,13 @@ export default function AdminInspectionPanel<T extends InspectionBookingBase>({
                             type="number"
                             min="0"
                             step="0.01"
-                            value={inspection.damageAmount ?? 0}
+                            value={inspection.damageAmount ?? ""}
                             onChange={(e) =>
                               updateInspectionDraft(booking, type, {
-                                damageAmount: Number(e.target.value) || 0,
+                                damageAmount:
+                                  e.target.value === ""
+                                    ? undefined
+                                    : Math.max(0, Number(e.target.value)),
                               })
                             }
                           />
@@ -922,10 +925,13 @@ export default function AdminInspectionPanel<T extends InspectionBookingBase>({
                               type="number"
                               min="0"
                               step="0.01"
-                              value={inspection.cleaningAmount ?? 0}
+                              value={inspection.cleaningAmount ?? ""}
                               onChange={(e) =>
                                 updateInspectionDraft(booking, type, {
-                                  cleaningAmount: Number(e.target.value) || 0,
+                                  cleaningAmount:
+                                    e.target.value === ""
+                                      ? undefined
+                                      : Math.max(0, Number(e.target.value)),
                                 })
                               }
                             />

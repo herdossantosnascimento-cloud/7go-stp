@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -89,8 +91,15 @@ export function LoginForm() {
   return (
     <main className="customer-auth-page">
       <section className="customer-auth-card">
-        <Link href="/" className="customer-auth-brand">
-          7GO
+        <Link href="/" className="customer-auth-brand" aria-label="7Go STP">
+          <Image
+            src="/images/7go-logo-final.png"
+            alt="7Go STP"
+            width={120}
+            height={90}
+            priority
+            className="auth-brand-logo"
+          />
         </Link>
 
         <span className="customer-auth-kicker">Área do cliente</span>

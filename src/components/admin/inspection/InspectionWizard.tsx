@@ -585,10 +585,13 @@ export function InspectionWizard({
                         min="0"
                         step="0.01"
                         disabled={busy}
-                        value={inspection.damageAmount ?? 0}
+                        value={inspection.damageAmount ?? ""}
                         onChange={(event) =>
                           onUpdate({
-                            damageAmount: Number(event.target.value) || 0,
+                            damageAmount:
+                              event.target.value === ""
+                                ? undefined
+                                : Math.max(0, Number(event.target.value)),
                           })
                         }
                       />
